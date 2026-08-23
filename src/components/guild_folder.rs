@@ -1,70 +1,104 @@
 use super::Guild;
-use crate::app_event::AppEvent;
+use crate::{
+    app_event::{AppEvent, AppMessage},
+    themes::GuildsTheme,
+};
 use iced::{
-    Background, Color, Element,
+    Background, Border, Color, Shadow,
     border::Radius,
-    widget::{column, container, row},
+    widget::{Container, button, column, container, row},
 };
 use std::collections::HashMap;
-
-const PADDING: f32 = 4.0;
-const MINIATURE_GUILD_SPACING: f32 = 2.0;
-const MINIATURE_GUILD_SIZE: u32 = 19;
-
-const OUTER_RADIUS: f32 = 16.0;
-const SMALL_RADIUS: f32 = 4.0;
-
-const BACKGROUND_COLOR: Color = Color::from_rgb8(19, 19, 19);
 
 #[derive(Debug)]
 pub struct GuildFolder {
     guilds: Vec<u64>,
+    id: u64,
+    pub is_open: bool,
 }
 
 impl GuildFolder {
-    pub fn new(guilds: Vec<u64>) -> Self {
-        Self { guilds }
+    pub fn new(id: u64, guilds: Vec<u64>) -> Self {
+        Self {
+            id,
+            guilds,
+            is_open: false,
+        }
     }
 
-    pub fn show_miniature<'a>(&'a self, guilds: &'a HashMap<u64, Guild>) -> Element<'a, AppEvent> {
+    pub fn show_miniature<'a>(
+        &'a self,
+        theme: &'a GuildsTheme,
+        guilds: &'a HashMap<u64, Guild>,
+    ) -> Container<'a, AppEvent> {
         let guild = |index: usize, radius: Radius| {
             self.guilds
                 .get(index)
                 .and_then(|id| guilds.get(id))
-                .map(|guild| guild.show_avatar(radius, MINIATURE_GUILD_SIZE))
+                .map(|guild| guild.show_avatar(theme, radius, theme.folder.miniature_guild_size))
                 .unwrap_or_else(|| {
                     container("")
-                        .width(MINIATURE_GUILD_SIZE)
-                        .height(MINIATURE_GUILD_SIZE)
+                        .width(theme.folder.miniature_guild_size)
+                        .height(theme.folder.miniature_guild_size)
                         .into()
                 })
         };
 
-        let radius = Radius::new(SMALL_RADIUS);
+        let radius = Radius::new(theme.folder.small_radius);
+        let spacing = theme.folder.miniature_guild_spacing;
+
         container(
-            column![
-                row![
-                    guild(0, radius.clone().bottom_right(OUTER_RADIUS)),
-                    guild(1, radius.clone().bottom_left(OUTER_RADIUS))
+            button(
+                column![
+                    row![
+                        guild(0, radius.clone().top_left(theme.radius)),
+                        guild(1, radius.clone().top_right(theme.radius))
+                    ]
+                    .spacing(spacing),
+                    row![
+                        guild(2, radius.clone().bottom_left(theme.radius)),
+                        guild(3, radius.clone().bottom_right(theme.radius))
+                    ]
+                    .spacing(spacing),
                 ]
-                .spacing(MINIATURE_GUILD_SPACING),
-                row![
-                    guild(2, radius.clone().top_right(OUTER_RADIUS)),
-                    guild(3, radius.clone().top_left(OUTER_RADIUS))
-                ]
-                .spacing(MINIATURE_GUILD_SPACING),
-            ]
-            .spacing(MINIATURE_GUILD_SPACING)
-            .padding(PADDING),
+                .spacing(spacing)
+                .padding(theme.folder.padding),
+            )
+            .padding(0)
+            .style(|_, _| button::Style {
+                background: None,
+                border: Border::default(),
+                shadow: Shadow::default(),
+                text_color: Color::WHITE,
+                snap: false,
+            })
+            .on_press(AppEvent::Message(if self.is_open {
+                AppMessage::CloseFolder(self.id)
+            } else {
+                AppMessage::OpenFolder(self.id)
+            })),
         )
         .style(|_| {
             let mut style = container::Style::default();
 
-            style.background = Some(Background::from(BACKGROUND_COLOR));
-            style.border.radius = Radius::new(OUTER_RADIUS);
+            style.background = Some(Background::from(theme.folder.background));
+            style.border.radius = Radius::new(theme.folder.outer_radius);
 
             style
         })
-        .into()
+    }
+
+    pub fn show_opened<'a>(
+        &'a self,
+        theme: &'a GuildsTheme,
+        guilds: &'a HashMap<u64, Guild>,
+    ) -> Container<'a, AppEvent> {
+        container(column(self.guilds.iter().filter_map(|id| {
+            Some(
+                guilds
+                    .get(id)?
+                    .show_avatar(theme, Radius::new(theme.radius), theme.size),
+            )
+        })))
     }
 }

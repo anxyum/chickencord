@@ -1,5 +1,5 @@
 use super::PreloadedUserSettings;
-use crate::app_event::AppEvent;
+use crate::app_event::{AppEvent, NetworkEvent};
 use base64::{Engine, engine::general_purpose::STANDARD};
 use discord_client_gateway::events::structs::ready::ReadyEvent;
 use discord_client_structs::structs::guild::GatewayGuild;
@@ -28,11 +28,11 @@ pub async fn handle_ready(event: ReadyEvent, sender: &mut Sender<AppEvent>) {
             };
 
             sender
-                .send(AppEvent::CreateGuild {
+                .send(AppEvent::Network(NetworkEvent::CreateGuild {
                     id: guild.id,
                     name,
                     avatar,
-                })
+                }))
                 .await
                 .unwrap();
         });
@@ -41,7 +41,7 @@ pub async fn handle_ready(event: ReadyEvent, sender: &mut Sender<AppEvent>) {
     if let Some(user_settings_proto) = &event.user_settings_proto {
         let user_settings = decode_settings(user_settings_proto).unwrap_or_default();
         sender
-            .send(AppEvent::UserSettings(user_settings))
+            .send(AppEvent::Network(NetworkEvent::UserSettings(user_settings)))
             .await
             .unwrap();
     }

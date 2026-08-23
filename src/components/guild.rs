@@ -1,6 +1,6 @@
-use crate::app_event::AppEvent;
+use crate::{app_event::AppEvent, themes::GuildsTheme};
 use iced::{
-    Background, Border, Color, Element,
+    Background, Border, Color, Element, Length, alignment,
     border::Radius,
     widget::{
         container,
@@ -29,25 +29,47 @@ impl Guild {
         }
     }
 
-    pub fn show_avatar(&self, radius: Radius, size: u32) -> Element<'_, AppEvent> {
+    pub fn show_avatar(
+        &self,
+        theme: &GuildsTheme,
+        radius: Radius,
+        size: impl Into<Length> + Copy,
+    ) -> Element<'_, AppEvent> {
         match &self.avatar {
-            Some(avatar) => Image::new(avatar)
-                .width(size)
-                .height(size)
-                .border_radius(radius)
-                .into(),
-            None => container(text(&self.initials))
-                .width(size)
-                .height(size)
-                .style(move |_| container::Style {
-                    background: Some(Background::Color(Color::BLACK)),
-                    border: Border {
-                        radius,
+            Some(avatar) => {
+                // iced_wgpu applique les rayons d'image avec un décalage diagonal
+                // (négation manquante dans shader/image.wgsl contrairement aux quads)
+                let radius = Radius {
+                    top_left: radius.bottom_right,
+                    top_right: radius.bottom_left,
+                    bottom_right: radius.top_left,
+                    bottom_left: radius.top_right,
+                };
+
+                Image::new(avatar)
+                    .width(size)
+                    .height(size)
+                    .border_radius(radius)
+                    .into()
+            }
+            None => {
+                let placeholder = theme.placeholder_background;
+                let text = text(&self.initials).color(Color::WHITE);
+                container(text)
+                    .width(size)
+                    .height(size)
+                    .align_x(alignment::Horizontal::Center)
+                    .align_y(alignment::Vertical::Center)
+                    .style(move |_| container::Style {
+                        background: Some(Background::Color(placeholder)),
+                        border: Border {
+                            radius,
+                            ..Default::default()
+                        },
                         ..Default::default()
-                    },
-                    ..Default::default()
-                })
-                .into(),
+                    })
+                    .into()
+            }
         }
     }
 }
