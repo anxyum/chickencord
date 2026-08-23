@@ -1,5 +1,5 @@
 mod handle_ready;
-mod user_settings;
+pub mod user_settings;
 
 pub use user_settings::PreloadedUserSettings;
 

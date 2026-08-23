@@ -30,6 +30,11 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
             let avatar = avatar.map(|bytes| Handle::from_bytes(Bytes::from(bytes)));
             app.guilds.create_guild(id, name, avatar);
         }
+        AppEvent::UserSettings(user_settings) => {
+            if let Some(guild_folders) = &user_settings.guild_folders {
+                app.guilds.reorganize(guild_folders)
+            }
+        }
         _ => {}
     }
 
