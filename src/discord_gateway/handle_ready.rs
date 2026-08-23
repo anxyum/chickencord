@@ -3,15 +3,15 @@ use crate::app_event::AppEvent;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use discord_client_gateway::events::structs::ready::ReadyEvent;
 use discord_client_structs::structs::guild::GatewayGuild;
+use iced::futures::{SinkExt, channel::mpsc::Sender};
 use prost::Message;
-use tokio::sync::mpsc::Sender;
 
 pub async fn handle_ready(event: ReadyEvent, sender: &mut Sender<AppEvent>) {
     let client = reqwest::Client::new();
 
     for guild in event.guilds {
         let client = client.clone();
-        let sender = sender.clone();
+        let mut sender = sender.clone();
 
         tokio::spawn(async move {
             let name = guild

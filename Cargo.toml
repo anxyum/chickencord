@@ -3,14 +3,20 @@ name = "chickencord"
 version = "0.1.0"
 edition = "2024"
 
+[profile.dev]
+opt-level = 1
+
 [dependencies]
 base64 = "0.23.1"
+bytes = "1.12.1"
 discord_client_gateway = { git = "https://github.com/UwUDev/discord-client-rs", rev = "5e1649297c5573827b4ef43921e0738c44814f8a" }
 discord_client_rest = { git = "https://github.com/UwUDev/discord-client-rs", rev = "5e1649297c5573827b4ef43921e0738c44814f8a" }
 discord_client_structs = { git = "https://github.com/UwUDev/discord-client-rs", rev = "5e1649297c5573827b4ef43921e0738c44814f8a" }
 dotenvy = "0.15.7"
+iced = { version = "0.14.0", features = ["image", "tokio"] }
 image = "0.25.10"
 prost = "0.14.4"
 reqwest = "0.13.4"
 resvg = "0.48.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio-stream = "0.1.19"
