@@ -1,12 +1,13 @@
-use super::{Guild, GuildFolder};
+use super::{Channel, Guild, GuildFolder};
 use crate::{
     app_event::AppEvent,
+    components::channel::GuildChannel,
     discord_gateway::user_settings::GuildFolders,
     icons::FOLDER_SVG,
-    themes::{AppTheme, GuildsTheme},
+    themes::{AppTheme, ChannelsTheme, GuildsTheme},
 };
 use iced::{
-    Background, Color, Length,
+    Background, Color, Element, Length,
     alignment::Horizontal,
     animation::{Animation, Easing},
     border::Radius,
@@ -23,6 +24,7 @@ pub struct Guilds {
     folder_order: Vec<u64>,
     folder_icon: svg::Handle,
     panel: Animation<bool>,
+    opened_guild: Option<u64>,
 }
 
 impl Default for Guilds {
@@ -36,6 +38,7 @@ impl Default for Guilds {
             panel: Animation::new(false)
                 .easing(Easing::EaseInOut)
                 .duration(Duration::from_millis(2000)),
+            opened_guild: None,
         }
     }
 }
@@ -50,8 +53,15 @@ impl Guilds {
         }
     }
 
-    pub fn create_guild(&mut self, id: u64, name: String, avatar: Option<Handle>) {
-        self.guilds.insert(id, Guild::new(id, name, avatar));
+    pub fn create_guild(
+        &mut self,
+        id: u64,
+        name: String,
+        avatar: Option<Handle>,
+        channels: HashMap<u64, GuildChannel>,
+    ) {
+        self.guilds
+            .insert(id, Guild::new(id, name, avatar, channels));
     }
 
     fn guilds_preview<'a>(&'a self, theme: &'a GuildsTheme) -> Scrollable<'a, AppEvent> {
@@ -65,10 +75,11 @@ impl Guilds {
         });
 
         let guilds_preview = self.guild_order.iter().map(|id| {
-            self.guilds
-                .get(id)
-                .unwrap()
-                .show_avatar(theme, Radius::new(theme.radius), theme.size)
+            self.guilds.get(id).unwrap().show_clickable_avatar(
+                theme,
+                Radius::new(theme.radius),
+                theme.size,
+            )
         });
 
         let spacing = theme.spacing;
@@ -190,5 +201,16 @@ impl Guilds {
     pub fn is_animating(&self) -> bool {
         let now = Instant::now();
         self.panel.is_animating(now) || self.folders.values().any(|f| f.is_animating(now))
+    }
+
+    pub fn open_guild(&mut self, guild_id: u64) {
+        self.opened_guild = Some(guild_id)
+    }
+
+    pub fn show_opened_guild_channels(
+        &self,
+        theme: &ChannelsTheme,
+    ) -> Option<Element<'_, AppEvent>> {
+        Some(self.guilds.get(&self.opened_guild?)?.show_channels(theme))
     }
 }

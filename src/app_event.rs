@@ -1,4 +1,5 @@
 use crate::discord_gateway::PreloadedUserSettings;
+use discord_client_structs::structs::channel::Channel;
 
 #[derive(Clone)]
 pub enum AppEvent {
@@ -12,6 +13,7 @@ pub enum NetworkEvent {
         id: u64,
         name: String,
         avatar: Option<Vec<u8>>,
+        channels: Vec<Channel>,
     },
     UserSettings(PreloadedUserSettings),
 }
@@ -19,5 +21,6 @@ pub enum NetworkEvent {
 #[derive(Clone)]
 pub enum AppMessage {
     ToggleFolder(u64),
+    OpenGuild(u64),
     Tick,
 }

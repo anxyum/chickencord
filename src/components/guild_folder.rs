@@ -158,11 +158,11 @@ impl GuildFolder {
     ) -> Container<'a, AppEvent> {
         let col = column([self.show_icon(theme, folder_icon).into()]).extend(
             self.guilds.iter().filter_map(|id| {
-                Some(
-                    guilds
-                        .get(id)?
-                        .show_avatar(theme, Radius::new(theme.radius), theme.size),
-                )
+                Some(guilds.get(id)?.show_clickable_avatar(
+                    theme,
+                    Radius::new(theme.radius),
+                    theme.size,
+                ))
             }),
         );
 

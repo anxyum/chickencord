@@ -8,13 +8,17 @@ use app_event::AppEvent;
 use bytes::Bytes;
 use components::Guilds;
 use iced::{
-    Element, Subscription, Task, time,
+    Element, Subscription, Task,
+    time::{self, Instant},
     widget::{container, image::Handle, row},
 };
 use std::time::Duration;
 use themes::AppTheme;
 
-use crate::app_event::{AppMessage, NetworkEvent};
+use crate::{
+    app_event::{AppMessage, NetworkEvent},
+    components::Channel,
+};
 
 fn main() -> iced::Result {
     dotenvy::dotenv().expect("failed to load .env");
@@ -53,9 +57,28 @@ impl App {
 fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
     match message {
         AppEvent::Network(event) => match event {
-            NetworkEvent::CreateGuild { id, name, avatar } => {
+            NetworkEvent::CreateGuild {
+                id,
+                name,
+                avatar,
+                channels,
+            } => {
                 let avatar = avatar.map(|bytes| Handle::from_bytes(Bytes::from(bytes)));
-                app.guilds.create_guild(id, name, avatar);
+                app.guilds.create_guild(
+                    id,
+                    name,
+                    avatar,
+                    channels
+                        .into_iter()
+                        .filter_map(|c| {
+                            let channel = c.try_into().ok()?;
+                            match channel {
+                                Channel::Guild(channel) => Some((channel.base().id, channel)),
+                                _ => None,
+                            }
+                        })
+                        .collect(),
+                );
             }
 
             NetworkEvent::UserSettings(user_settings) => {
@@ -67,7 +90,11 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
 
         AppEvent::Message(message) => match message {
             AppMessage::ToggleFolder(id) => {
-                app.guilds.toggle_folder(id, iced::time::Instant::now());
+                app.guilds.toggle_folder(id, Instant::now());
+            }
+
+            AppMessage::OpenGuild(id) => {
+                app.guilds.open_guild(id);
             }
 
             AppMessage::Tick => {}
@@ -78,5 +105,9 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
 }
 
 fn view(app: &App) -> Element<'_, AppEvent> {
-    container(row![app.guilds.show(&app.theme)]).into()
+    container(row![
+        app.guilds.show(&app.theme),
+        app.guilds.show_opened_guild_channels(&app.theme.channels)
+    ])
+    .into()
 }

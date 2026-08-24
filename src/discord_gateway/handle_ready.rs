@@ -32,6 +32,7 @@ pub async fn handle_ready(event: ReadyEvent, sender: &mut Sender<AppEvent>) {
                     id: guild.id,
                     name,
                     avatar,
+                    channels: guild.channels.unwrap_or_default(),
                 }))
                 .await
                 .unwrap();

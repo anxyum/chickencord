@@ -5,6 +5,7 @@ use iced::Color;
 #[derive(Debug, Default)]
 pub struct AppTheme {
     pub guilds: GuildsTheme,
+    pub channels: ChannelsTheme,
 }
 
 #[derive(Debug)]
@@ -90,3 +91,6 @@ impl GuildFolderTheme {
         }
     }
 }
+
+#[derive(Debug, Default)]
+pub struct ChannelsTheme {}
