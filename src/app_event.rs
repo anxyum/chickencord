@@ -18,6 +18,6 @@ pub enum NetworkEvent {
 
 #[derive(Clone)]
 pub enum AppMessage {
-    OpenFolder(u64),
-    CloseFolder(u64),
+    ToggleFolder(u64),
+    Tick,
 }

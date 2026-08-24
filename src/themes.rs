@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use iced::Color;
 
 #[derive(Debug, Default)]
@@ -19,6 +21,8 @@ pub struct GuildsTheme {
     pub background: Color,
     pub border_color: Color,
     pub placeholder_background: Color,
+
+    pub animation_duration: Duration,
 }
 
 impl Default for GuildsTheme {
@@ -39,6 +43,8 @@ impl Default for GuildsTheme {
             background: Color::BLACK,
             border_color: Color::from_rgb8(35, 35, 35),
             placeholder_background: Color::BLACK,
+
+            animation_duration: Duration::from_millis(200),
         }
     }
 }
