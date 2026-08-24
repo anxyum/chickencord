@@ -37,8 +37,6 @@ impl Guild {
     ) -> Element<'_, AppEvent> {
         match &self.avatar {
             Some(avatar) => {
-                // iced_wgpu applique les rayons d'image avec un décalage diagonal
-                // (négation manquante dans shader/image.wgsl contrairement aux quads)
                 let radius = Radius {
                     top_left: radius.bottom_right,
                     top_right: radius.bottom_left,

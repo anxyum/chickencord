@@ -59,7 +59,5 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
 }
 
 fn view(app: &App) -> Element<'_, AppEvent> {
-    dbg!(app);
-
     container(row![app.guilds.show(&app.theme)]).into()
 }

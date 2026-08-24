@@ -1,1 +1,1 @@
-pub const FOLDER_SVG: &str = include_str!("../icons/folder.svg");
+pub const FOLDER_SVG: &[u8] = include_bytes!("../icons/folder.svg");

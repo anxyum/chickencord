@@ -13,7 +13,7 @@ discord_client_gateway = { git = "https://github.com/UwUDev/discord-client-rs", 
 discord_client_rest = { git = "https://github.com/UwUDev/discord-client-rs", rev = "5e1649297c5573827b4ef43921e0738c44814f8a" }
 discord_client_structs = { git = "https://github.com/UwUDev/discord-client-rs", rev = "5e1649297c5573827b4ef43921e0738c44814f8a" }
 dotenvy = "0.15.7"
-iced = { version = "0.14.0", features = ["image", "tokio"] }
+iced = { version = "0.14.0", features = ["image", "tokio", "svg"] }
 image = "0.25.10"
 prost = "0.14.4"
 reqwest = "0.13.4"

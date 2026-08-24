@@ -2,21 +2,35 @@ use super::{Guild, GuildFolder};
 use crate::{
     app_event::AppEvent,
     discord_gateway::user_settings::GuildFolders,
+    icons::FOLDER_SVG,
     themes::{AppTheme, GuildsTheme},
 };
 use iced::{
     Background, Color, Length,
     border::Radius,
-    widget::{Container, Scrollable, column, container, image::Handle, row, scrollable},
+    widget::{Container, Scrollable, column, container, image::Handle, row, scrollable, svg},
 };
 use std::collections::HashMap;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct Guilds {
     guilds: HashMap<u64, Guild>,
     folders: HashMap<u64, GuildFolder>,
-    folder_order: Vec<u64>,
     guild_order: Vec<u64>,
+    folder_order: Vec<u64>,
+    folder_icon: svg::Handle,
+}
+
+impl Default for Guilds {
+    fn default() -> Self {
+        Self {
+            guilds: Default::default(),
+            folders: Default::default(),
+            guild_order: Default::default(),
+            folder_order: Default::default(),
+            folder_icon: svg::Handle::from_memory(FOLDER_SVG),
+        }
+    }
 }
 
 impl Guilds {
@@ -29,7 +43,7 @@ impl Guilds {
             Some(
                 self.folders
                     .get(&id)?
-                    .show_miniature(theme, &self.guilds)
+                    .show_miniature(theme, &self.guilds, &self.folder_icon)
                     .into(),
             )
         });
@@ -60,13 +74,48 @@ impl Guilds {
         })
     }
 
+    fn opened_folders<'a>(&'a self, theme: &'a GuildsTheme) -> Scrollable<'a, AppEvent> {
+        let spacing = theme.spacing;
+        scrollable(
+            column(self.folder_order.iter().filter_map(|id| {
+                if let Some(folder) = self.folders.get(&id)
+                    && folder.is_open
+                {
+                    Some(
+                        folder
+                            .show_opened(theme, &self.guilds, &self.folder_icon)
+                            .into(),
+                    )
+                } else {
+                    None
+                }
+            }))
+            .spacing(spacing),
+        )
+        .height(Length::Fill)
+        .style(|theme, status| {
+            let mut style = scrollable::default(theme, status);
+
+            style.vertical_rail.background = None;
+            style.vertical_rail.scroller.background = Background::Color(Color::TRANSPARENT);
+
+            style
+        })
+    }
+
     pub fn show<'a>(&'a self, theme: &'a AppTheme) -> Container<'a, AppEvent> {
         let theme = &theme.guilds;
 
+        let mut content = row![self.guilds_preview(theme)]
+            .padding(theme.padding)
+            .spacing(theme.padding);
+
+        if self.folders.iter().any(|(_, f)| f.is_open) {
+            content = content.push(self.opened_folders(theme));
+        }
+
         container(row![
-            row![self.guilds_preview(theme),]
-                .padding(theme.padding)
-                .spacing(theme.padding),
+            content,
             container("")
                 .width(theme.border_size)
                 .height(Length::Fill)

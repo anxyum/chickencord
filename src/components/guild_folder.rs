@@ -4,9 +4,9 @@ use crate::{
     themes::GuildsTheme,
 };
 use iced::{
-    Background, Border, Color, Shadow,
+    Background, Border, Color, Length, Shadow,
     border::Radius,
-    widget::{Container, button, column, container, row},
+    widget::{Button, Container, Svg, button, column, container, row, svg},
 };
 use std::collections::HashMap;
 
@@ -26,10 +26,33 @@ impl GuildFolder {
         }
     }
 
+    fn show_icon<'a>(
+        &'a self,
+        theme: &'a GuildsTheme,
+        folder_icon: &svg::Handle,
+    ) -> Button<'a, AppEvent> {
+        button(Svg::new(folder_icon.clone()))
+            .padding(theme.folder.folder_icon_padding)
+            .width(Length::Shrink)
+            .style(|_, status| button::Style {
+                background: if status == button::Status::Hovered {
+                    Some(Background::Color(theme.folder.active_background))
+                } else {
+                    None
+                },
+                border: Border::default().rounded(theme.radius),
+                shadow: Shadow::default(),
+                text_color: Color::WHITE,
+                snap: false,
+            })
+            .on_press(AppEvent::Message(AppMessage::CloseFolder(self.id)))
+    }
+
     pub fn show_miniature<'a>(
         &'a self,
         theme: &'a GuildsTheme,
         guilds: &'a HashMap<u64, Guild>,
+        folder_icon: &svg::Handle,
     ) -> Container<'a, AppEvent> {
         let guild = |index: usize, radius: Radius| {
             self.guilds
@@ -47,7 +70,9 @@ impl GuildFolder {
         let radius = Radius::new(theme.folder.small_radius);
         let spacing = theme.folder.miniature_guild_spacing;
 
-        container(
+        container(if self.is_open {
+            self.show_icon(theme, folder_icon)
+        } else {
             button(
                 column![
                     row![
@@ -61,8 +86,7 @@ impl GuildFolder {
                     ]
                     .spacing(spacing),
                 ]
-                .spacing(spacing)
-                .padding(theme.folder.padding),
+                .spacing(spacing),
             )
             .padding(0)
             .style(|_, _| button::Style {
@@ -72,12 +96,9 @@ impl GuildFolder {
                 text_color: Color::WHITE,
                 snap: false,
             })
-            .on_press(AppEvent::Message(if self.is_open {
-                AppMessage::CloseFolder(self.id)
-            } else {
-                AppMessage::OpenFolder(self.id)
-            })),
-        )
+            .on_press(AppEvent::Message(AppMessage::OpenFolder(self.id)))
+        })
+        .padding(theme.folder.padding)
         .style(|_| {
             let mut style = container::Style::default();
 
@@ -92,13 +113,26 @@ impl GuildFolder {
         &'a self,
         theme: &'a GuildsTheme,
         guilds: &'a HashMap<u64, Guild>,
+        folder_icon: &svg::Handle,
     ) -> Container<'a, AppEvent> {
-        container(column(self.guilds.iter().filter_map(|id| {
-            Some(
-                guilds
-                    .get(id)?
-                    .show_avatar(theme, Radius::new(theme.radius), theme.size),
-            )
-        })))
+        let col = column([self.show_icon(theme, folder_icon).into()]).extend(
+            self.guilds.iter().filter_map(|id| {
+                Some(
+                    guilds
+                        .get(id)?
+                        .show_avatar(theme, Radius::new(theme.radius), theme.size),
+                )
+            }),
+        );
+        container(col.spacing(theme.spacing))
+            .padding(theme.folder.padding)
+            .style(|_| {
+                container::Style::default()
+                    .background(theme.folder.background)
+                    .border(Border {
+                        radius: Radius::new(theme.folder.outer_radius),
+                        ..Default::default()
+                    })
+            })
     }
 }
