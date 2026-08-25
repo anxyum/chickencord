@@ -18,6 +18,7 @@ use themes::AppTheme;
 use crate::{
     app_event::{AppMessage, NetworkEvent},
     components::Channel,
+    discord_gateway::PreloadedUserSettings,
 };
 
 fn main() -> iced::Result {
@@ -82,7 +83,8 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
             }
 
             NetworkEvent::UserSettings(user_settings) => {
-                if let Some(guild_folders) = &user_settings.guild_folders {
+                let PreloadedUserSettings { guild_folders, .. } = user_settings;
+                if let Some(guild_folders) = guild_folders {
                     app.guilds.reorganize(guild_folders, &app.theme.guilds)
                 }
             }

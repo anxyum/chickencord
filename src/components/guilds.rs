@@ -165,27 +165,19 @@ impl Guilds {
         .style(|_| container::Style::default().background(theme.guilds.background))
     }
 
-    pub fn reorganize(&mut self, folders: &GuildFolders, theme: &GuildsTheme) {
+    pub fn reorganize(&mut self, folders: GuildFolders, theme: &GuildsTheme) {
         self.guild_order = folders.guild_positions.clone();
-        self.folders = folders
-            .folders
-            .iter()
-            .map(|f| {
-                (
-                    f.id.as_ref().unwrap().value as u64,
-                    GuildFolder::new(
-                        f.id.as_ref().unwrap().value as u64,
-                        f.guild_ids.clone(),
-                        theme,
-                    ),
-                )
-            })
-            .collect();
-        self.folder_order = folders
-            .folders
-            .iter()
-            .map(|f| f.id.as_ref().unwrap().value as u64)
-            .collect();
+        self.folders = HashMap::new();
+        self.folder_order = Vec::new();
+
+        for (i, f) in folders.folders.into_iter().enumerate() {
+            let id = f.id.as_ref().map(|v| v.value).unwrap_or(i as i64) as u64;
+
+            self.folders
+                .insert(id, GuildFolder::new(id, f.guild_ids, theme));
+
+            self.folder_order.push(id);
+        }
     }
 
     pub fn toggle_folder(&mut self, id: u64, now: Instant) {
