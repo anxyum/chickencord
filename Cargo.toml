@@ -7,6 +7,7 @@ edition = "2024"
 opt-level = 1
 
 [dependencies]
+anyhow = "1.0.104"
 base64 = "0.23.1"
 bytes = "1.12.1"
 discord_client_gateway = { git = "https://github.com/UwUDev/discord-client-rs", rev = "5e1649297c5573827b4ef43921e0738c44814f8a" }

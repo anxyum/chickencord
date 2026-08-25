@@ -1,5 +1,6 @@
 use super::PreloadedUserSettings;
 use crate::app_event::{AppEvent, NetworkEvent};
+use anyhow::Result as AnyResult;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use discord_client_gateway::events::structs::ready::ReadyEvent;
 use discord_client_structs::structs::guild::GatewayGuild;
@@ -23,7 +24,7 @@ pub async fn handle_ready(event: ReadyEvent, sender: &mut Sender<AppEvent>) {
             let avatar_link = guild_avatar_url(&guild);
 
             let avatar = match avatar_link {
-                Some(link) => Some(fetch_avatar(client, &link).await),
+                Some(link) => fetch_avatar(client, &link).await.ok(),
                 None => None,
             };
 
@@ -63,16 +64,8 @@ fn guild_avatar_url(guild: &GatewayGuild) -> Option<String> {
     ))
 }
 
-async fn fetch_avatar(client: reqwest::Client, link: &str) -> Vec<u8> {
-    client
-        .get(link)
-        .send()
-        .await
-        .unwrap()
-        .bytes()
-        .await
-        .unwrap()
-        .to_vec()
+async fn fetch_avatar(client: reqwest::Client, link: &str) -> AnyResult<Vec<u8>> {
+    Ok(client.get(link).send().await?.bytes().await?.to_vec())
 }
 
 fn decode_settings(
