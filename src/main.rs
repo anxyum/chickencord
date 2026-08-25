@@ -12,6 +12,7 @@ use iced::{
     time::{self, Instant},
     widget::{container, image::Handle, row},
 };
+use icons::Icons;
 use std::time::Duration;
 use themes::AppTheme;
 
@@ -24,7 +25,7 @@ use crate::{
 fn main() -> iced::Result {
     dotenvy::dotenv().expect("failed to load .env");
 
-    iced::application(|| App::new(themes::AppTheme::default()), update, view)
+    iced::application(|| App::new(), update, view)
         .subscription(subscription)
         .run()
 }
@@ -42,16 +43,31 @@ fn subscription(app: &App) -> Subscription<AppEvent> {
 }
 
 #[derive(Default, Debug)]
+pub struct Context {
+    pub theme: AppTheme,
+    pub icons: Icons,
+}
+
+impl Context {
+    pub fn new(theme: AppTheme, icons: Icons) -> Self {
+        Self { theme, icons }
+    }
+}
+
+#[derive(Default, Debug)]
 struct App {
-    theme: AppTheme,
     guilds: Guilds,
+    context: Context,
 }
 
 impl App {
-    fn new(theme: AppTheme) -> Self {
-        let guilds = Guilds::new(&theme.guilds);
+    fn new() -> Self {
+        let context = Context::default();
 
-        Self { theme, guilds }
+        Self {
+            guilds: Guilds::new(&context),
+            context,
+        }
     }
 }
 
@@ -85,7 +101,7 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
             NetworkEvent::UserSettings(user_settings) => {
                 let PreloadedUserSettings { guild_folders, .. } = user_settings;
                 if let Some(guild_folders) = guild_folders {
-                    app.guilds.reorganize(guild_folders, &app.theme.guilds)
+                    app.guilds.reorganize(guild_folders, &app.context)
                 }
             }
         },
@@ -115,9 +131,9 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
 }
 
 fn view(app: &App) -> Element<'_, AppEvent> {
-    let mut content = row![app.guilds.show(&app.theme)];
+    let mut content = row![app.guilds.show(&app.context)];
 
-    if let Some(channels) = app.guilds.show_opened_guild_channels(&app.theme) {
+    if let Some(channels) = app.guilds.show_opened_guild_channels(&app.context) {
         content = content.push(channels);
         content = content.push(app.guilds.channel_resize_divider());
     }

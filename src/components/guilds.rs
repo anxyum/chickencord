@@ -1,10 +1,7 @@
 use super::{Guild, GuildFolder, resizer::ChannelResizeHandle};
 use crate::{
-    app_event::AppEvent,
-    components::channel::GuildChannel,
+    Context, app_event::AppEvent, components::channel::GuildChannel,
     discord_gateway::user_settings::GuildFolders,
-    icons::FOLDER_SVG,
-    themes::{AppTheme, GuildsTheme},
 };
 use iced::{
     Background, Color, Element, Length,
@@ -12,9 +9,7 @@ use iced::{
     animation::{Animation, Easing},
     border::Radius,
     time::Instant,
-    widget::{
-        Canvas, Container, Scrollable, column, container, image::Handle, row, scrollable, svg,
-    },
+    widget::{Canvas, Container, Scrollable, column, container, image::Handle, row, scrollable},
 };
 use std::{collections::HashMap, time::Duration};
 
@@ -24,7 +19,6 @@ pub struct Guilds {
     folders: HashMap<u64, GuildFolder>,
     guild_order: Vec<u64>,
     folder_order: Vec<u64>,
-    folder_icon: svg::Handle,
     panel: Animation<bool>,
     opened_guild: Option<u64>,
     channel_panel_width: f32,
@@ -37,7 +31,6 @@ impl Default for Guilds {
             folders: Default::default(),
             guild_order: Default::default(),
             folder_order: Default::default(),
-            folder_icon: svg::Handle::from_memory(FOLDER_SVG),
             panel: Animation::new(false)
                 .easing(Easing::EaseInOut)
                 .duration(Duration::from_millis(2000)),
@@ -48,11 +41,11 @@ impl Default for Guilds {
 }
 
 impl Guilds {
-    pub fn new(theme: &GuildsTheme) -> Self {
+    pub fn new(context: &Context) -> Self {
         Self {
             panel: Animation::new(false)
                 .easing(Easing::EaseInOut)
-                .duration(theme.animation_duration),
+                .duration(context.theme.guilds.animation_duration),
             ..Default::default()
         }
     }
@@ -68,29 +61,29 @@ impl Guilds {
             .insert(id, Guild::new(id, name, avatar, channels));
     }
 
-    fn guilds_preview<'a>(&'a self, theme: &'a GuildsTheme) -> Scrollable<'a, AppEvent> {
+    fn guilds_preview<'a>(&'a self, context: &'a Context) -> Scrollable<'a, AppEvent> {
         let folders_preview = self.folder_order.iter().filter_map(|id| {
             Some(
                 self.folders
                     .get(&id)?
-                    .show_miniature(theme, &self.guilds, &self.folder_icon)
+                    .show_miniature(context, &self.guilds)
                     .into(),
             )
         });
 
         let guilds_preview = self.guild_order.iter().map(|id| {
             self.guilds.get(id).unwrap().show_clickable_avatar(
-                theme,
-                Radius::new(theme.radius),
-                theme.size,
+                context,
+                Radius::new(context.theme.guilds.radius),
+                context.theme.guilds.size,
             )
         });
 
-        let spacing = theme.spacing;
+        let spacing = context.theme.guilds.spacing;
         scrollable(column(folders_preview.chain(guilds_preview)).spacing(spacing))
             .height(Length::Fill)
-            .style(|theme, status| {
-                let mut style = scrollable::default(theme, status);
+            .style(|context, status| {
+                let mut style = scrollable::default(context, status);
 
                 style.vertical_rail.background = None;
                 style.vertical_rail.scroller.background = Background::Color(Color::TRANSPARENT);
@@ -101,30 +94,26 @@ impl Guilds {
 
     fn opened_folders<'a>(
         &'a self,
-        theme: &'a GuildsTheme,
+        context: &'a Context,
         now: Instant,
     ) -> Scrollable<'a, AppEvent> {
-        let spacing = theme.spacing;
+        let spacing = context.theme.guilds.spacing;
         scrollable(
             column(self.folder_order.iter().filter_map(|id| {
                 let folder = self.folders.get(&id)?;
 
                 if folder.is_visible(now) {
-                    Some(
-                        folder
-                            .show_opened(theme, &self.guilds, &self.folder_icon, now)
-                            .into(),
-                    )
+                    Some(folder.show_opened(context, &self.guilds, now).into())
                 } else {
                     None
                 }
             }))
             .spacing(spacing),
         )
-        .width(theme.size + theme.folder.padding * 2.0)
+        .width(context.theme.guilds.size + context.theme.guilds.folder.padding * 2.0)
         .height(Length::Fill)
-        .style(|theme, status| {
-            let mut style = scrollable::default(theme, status);
+        .style(|context, status| {
+            let mut style = scrollable::default(context, status);
 
             style.vertical_rail.background = None;
             style.vertical_rail.scroller.background = Background::Color(Color::TRANSPARENT);
@@ -133,22 +122,22 @@ impl Guilds {
         })
     }
 
-    pub fn show<'a>(&'a self, theme: &'a AppTheme) -> Container<'a, AppEvent> {
+    pub fn show<'a>(&'a self, context: &'a Context) -> Container<'a, AppEvent> {
         let now = Instant::now();
 
-        let mut content = row![self.guilds_preview(&theme.guilds)]
-            .padding(theme.guilds.padding)
-            .spacing(theme.guilds.padding);
+        let mut content = row![self.guilds_preview(context)]
+            .padding(context.theme.guilds.padding)
+            .spacing(context.theme.guilds.padding);
 
         if self.folders.values().any(|f| f.is_visible(now)) {
             let panel_width = self.panel.interpolate(
                 0.0,
-                theme.guilds.size + theme.guilds.folder.padding * 2.0,
+                context.theme.guilds.size + context.theme.guilds.folder.padding * 2.0,
                 now,
             );
 
             content = content.push(
-                container(self.opened_folders(&theme.guilds, now))
+                container(self.opened_folders(context, now))
                     .width(panel_width)
                     .clip(true)
                     .align_x(Horizontal::Right),
@@ -158,14 +147,14 @@ impl Guilds {
         container(row![
             content,
             container("")
-                .width(theme.border_size)
+                .width(context.theme.border_size)
                 .height(Length::Fill)
-                .style(|_| container::Style::default().background(theme.border_color))
+                .style(|_| container::Style::default().background(context.theme.border_color))
         ])
-        .style(|_| container::Style::default().background(theme.guilds.background))
+        .style(|_| container::Style::default().background(context.theme.guilds.background))
     }
 
-    pub fn reorganize(&mut self, folders: GuildFolders, theme: &GuildsTheme) {
+    pub fn reorganize(&mut self, folders: GuildFolders, context: &Context) {
         self.guild_order = folders.guild_positions.clone();
         self.folders = HashMap::new();
         self.folder_order = Vec::new();
@@ -174,7 +163,7 @@ impl Guilds {
             let id = f.id.as_ref().map(|v| v.value).unwrap_or(i as i64) as u64;
 
             self.folders
-                .insert(id, GuildFolder::new(id, f.guild_ids, theme));
+                .insert(id, GuildFolder::new(id, f.guild_ids, context));
 
             self.folder_order.push(id);
         }
@@ -210,12 +199,12 @@ impl Guilds {
 
     pub fn show_opened_guild_channels<'a>(
         &'a self,
-        theme: &'a AppTheme,
+        context: &'a Context,
     ) -> Option<Element<'a, AppEvent>> {
         Some(
             self.guilds
                 .get(&self.opened_guild?)?
-                .show_channels(theme, self.channel_panel_width),
+                .show_channels(context, self.channel_panel_width),
         )
     }
 

@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use super::{Channels, channel::GuildChannel};
 use crate::{
+    Context,
     app_event::{AppEvent, AppMessage},
     components::button,
-    themes::{AppTheme, GuildsTheme},
 };
 use iced::{
     Background, Border, Color, Element, Length, alignment,
@@ -45,7 +45,7 @@ impl Guild {
 
     pub fn show_avatar(
         &self,
-        theme: &GuildsTheme,
+        context: &Context,
         radius: Radius,
         size: impl Into<Length> + Copy,
     ) -> Element<'_, AppEvent> {
@@ -65,7 +65,7 @@ impl Guild {
                     .into()
             }
             None => {
-                let placeholder = theme.placeholder_background;
+                let placeholder = context.theme.guilds.placeholder_background;
                 let text = text(&self.initials).color(Color::WHITE);
                 container(text)
                     .width(size)
@@ -87,21 +87,21 @@ impl Guild {
 
     pub fn show_clickable_avatar(
         &self,
-        theme: &GuildsTheme,
+        context: &Context,
         radius: Radius,
         size: impl Into<Length> + Copy,
     ) -> Element<'_, AppEvent> {
-        button(self.show_avatar(theme, radius, size))
+        button(self.show_avatar(context, radius, size))
             .on_press(AppEvent::Message(AppMessage::OpenGuild(self.id)))
             .into()
     }
 
     pub fn show_channels<'a>(
         &'a self,
-        theme: &'a AppTheme,
+        context: &'a Context,
         panel_width: f32,
     ) -> Element<'a, AppEvent> {
-        self.channels.show_channels(theme, panel_width)
+        self.channels.show_channels(context, panel_width)
     }
 
     pub fn toggle_category(&mut self, id: u64) -> Option<()> {

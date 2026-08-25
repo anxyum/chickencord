@@ -1,14 +1,14 @@
 use super::channel::GuildChannel;
 use crate::{
+    Context,
     app_event::{AppEvent, AppMessage},
     components::button,
-    themes::{AppTheme, ChannelsTheme},
 };
 use iced::{
-    Color, Element,
-    widget::{column, container, text},
+    Color, Element, alignment,
+    widget::{Svg, column, container, row, text},
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, f32::consts::PI};
 
 #[derive(Debug)]
 pub struct Channels {
@@ -79,17 +79,36 @@ impl Channels {
 
     fn show_channel<'a>(
         &self,
+        context: &Context,
         channel: &'a GuildChannel,
-        _theme: &ChannelsTheme,
     ) -> Element<'a, AppEvent> {
         match channel {
-            GuildChannel::Text(channel) => text(&channel.base.name).into(),
+            GuildChannel::Text(channel) => button(
+                text(&channel.base.name)
+                    .size(16)
+                    .color(Color::from_rgb8(120, 120, 120)),
+            )
+            .into(),
             GuildChannel::Category(category) => {
                 let channel_id = category.base.id;
 
-                button(text(&category.base.name))
-                    .on_press(AppEvent::Message(AppMessage::ToggleCategory(channel_id)))
-                    .into()
+                button(
+                    row([
+                        text(&category.base.name)
+                            .size(14)
+                            .color(Color::from_rgb8(120, 120, 120))
+                            .into(),
+                        Svg::new(context.icons.unfold_category.clone())
+                            .width(12)
+                            .height(12)
+                            .rotation(if category.is_open { 0.0 } else { -PI * 0.5 })
+                            .into(),
+                    ])
+                    .align_y(alignment::Vertical::Center)
+                    .spacing(4),
+                )
+                .on_press(AppEvent::Message(AppMessage::ToggleCategory(channel_id)))
+                .into()
             }
 
             _ => text("not implemented yet")
@@ -100,13 +119,13 @@ impl Channels {
 
     pub fn show_channels<'a>(
         &'a self,
-        theme: &'a AppTheme,
+        context: &'a Context,
         panel_width: f32,
     ) -> Element<'a, AppEvent> {
         let uncategorized = self
             .channels_order
             .iter()
-            .filter_map(|id| Some(self.show_channel(self.channels.get(id)?, &theme.channels)));
+            .filter_map(|id| Some(self.show_channel(context, self.channels.get(id)?)));
 
         let categorized = self.categories_order.iter().filter_map(|id| {
             let channel = self.channels.get(id)?;
@@ -114,12 +133,13 @@ impl Channels {
                 return None;
             };
 
-            let mut col = column(std::iter::once(self.show_channel(channel, &theme.channels)));
+            let mut col = column(std::iter::once(self.show_channel(context, channel)));
 
             if category.is_open {
-                let children = category.children.iter().filter_map(|id| {
-                    Some(self.show_channel(self.channels.get(id)?, &theme.channels))
-                });
+                let children = category
+                    .children
+                    .iter()
+                    .filter_map(|id| Some(self.show_channel(context, self.channels.get(id)?)));
 
                 col = col.extend(children);
             }
@@ -130,7 +150,7 @@ impl Channels {
         let content = container(column(uncategorized.chain(categorized))).width(panel_width);
 
         container(content)
-            .style(|_| container::Style::default().background(theme.channels.background))
+            .style(|_| container::Style::default().background(context.theme.channels.background))
             .into()
     }
 
