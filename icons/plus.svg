@@ -1,16 +1,15 @@
 <svg
+    class="addButtonIcon__29444"
     aria-hidden="true"
     role="img"
     xmlns="http://www.w3.org/2000/svg"
-    width="18"
-    height="18"
+    width="16"
+    height="16"
     fill="none"
     viewBox="0 0 24 24"
-    color="rgb(88, 101, 242)"
->
-  <path
+><path
         fill="currentColor"
-        d="M2 5a3 3 0 0 1 3-3h3.93a2 2 0 0 1 1.66.9L12 5h7a3 3 0 0 1 3 3v11a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V5Z"
+        d="M13 5a1 1 0 1 0-2 0v6H5a1 1 0 1 0 0 2h6v6a1 1 0 1 0 2 0v-6h6a1 1 0 1 0 0-2h-6V5Z"
         class=""
     />
 </svg>

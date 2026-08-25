@@ -1,6 +1,7 @@
-use std::num::NonZeroU64;
+#![allow(dead_code)]
 
 use discord_client_structs::structs::channel::Channel as GatewayChannel;
+use std::num::NonZeroU64;
 
 #[derive(Debug)]
 pub enum Channel {
@@ -103,6 +104,7 @@ pub struct StageChannel {
 pub struct Category {
     pub base: GuildChannelBase,
     pub children: Vec<u64>,
+    pub is_open: bool,
 }
 
 #[derive(Debug)]
@@ -364,6 +366,7 @@ impl TryFrom<GatewayChannel> for Channel {
                     value.parent_id,
                 ),
                 children: Vec::new(),
+                is_open: true,
             }))),
 
             6 => Ok(Self::Guild(GuildChannel::Store(GuildStore {

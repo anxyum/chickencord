@@ -8,7 +8,7 @@ use app_event::AppEvent;
 use bytes::Bytes;
 use components::Guilds;
 use iced::{
-    Element, Subscription, Task,
+    Color, Element, Length, Subscription, Task,
     time::{self, Instant},
     widget::{container, image::Handle, row},
 };
@@ -97,6 +97,14 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
                 app.guilds.open_guild(id);
             }
 
+            AppMessage::ChannelPanelResized(width) => {
+                app.guilds.set_channel_panel_width(width);
+            }
+
+            AppMessage::ToggleCategory(channel_id) => {
+                app.guilds.toggle_category(channel_id);
+            }
+
             AppMessage::Tick => {}
         },
     }
@@ -105,9 +113,15 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
 }
 
 fn view(app: &App) -> Element<'_, AppEvent> {
-    container(row![
-        app.guilds.show(&app.theme),
-        app.guilds.show_opened_guild_channels(&app.theme.channels)
-    ])
-    .into()
+    let mut content = row![app.guilds.show(&app.theme)];
+
+    if let Some(channels) = app.guilds.show_opened_guild_channels(&app.theme) {
+        content = content.push(channels);
+        content = content.push(app.guilds.channel_resize_divider());
+    }
+
+    container(content)
+        .width(Length::Fill)
+        .style(|_| container::Style::default().background(Color::BLACK))
+        .into()
 }

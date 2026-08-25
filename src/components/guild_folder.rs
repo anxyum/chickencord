@@ -1,6 +1,7 @@
 use super::Guild;
 use crate::{
     app_event::{AppEvent, AppMessage},
+    components::button,
     themes::GuildsTheme,
 };
 use iced::{
@@ -8,7 +9,7 @@ use iced::{
     animation::{Animation, Easing},
     border::Radius,
     time::Instant,
-    widget::{Button, Container, Svg, button, column, container, row, svg},
+    widget::{Button, Container, Svg, button as iced_button, column, container, row, svg},
 };
 use std::collections::HashMap;
 
@@ -74,8 +75,8 @@ impl GuildFolder {
         )
         .padding(theme.folder.folder_icon_padding)
         .width(Length::Shrink)
-        .style(|_, status| button::Style {
-            background: if status == button::Status::Hovered {
+        .style(|_, status| iced_button::Style {
+            background: if status == iced_button::Status::Hovered {
                 Some(Background::Color(theme.folder.active_background))
             } else {
                 None
@@ -129,7 +130,7 @@ impl GuildFolder {
                 .spacing(spacing),
             )
             .padding(0)
-            .style(|_, _| button::Style {
+            .style(|_, _| iced_button::Style {
                 background: None,
                 border: Border::default(),
                 shadow: Shadow::default(),

@@ -1,10 +1,10 @@
-use super::{Channel, Guild, GuildFolder};
+use super::{Guild, GuildFolder, resizer::ChannelResizeHandle};
 use crate::{
     app_event::AppEvent,
     components::channel::GuildChannel,
     discord_gateway::user_settings::GuildFolders,
     icons::FOLDER_SVG,
-    themes::{AppTheme, ChannelsTheme, GuildsTheme},
+    themes::{AppTheme, GuildsTheme},
 };
 use iced::{
     Background, Color, Element, Length,
@@ -12,7 +12,9 @@ use iced::{
     animation::{Animation, Easing},
     border::Radius,
     time::Instant,
-    widget::{Container, Scrollable, column, container, image::Handle, row, scrollable, svg},
+    widget::{
+        Canvas, Container, Scrollable, column, container, image::Handle, row, scrollable, svg,
+    },
 };
 use std::{collections::HashMap, time::Duration};
 
@@ -25,6 +27,7 @@ pub struct Guilds {
     folder_icon: svg::Handle,
     panel: Animation<bool>,
     opened_guild: Option<u64>,
+    channel_panel_width: f32,
 }
 
 impl Default for Guilds {
@@ -39,6 +42,7 @@ impl Default for Guilds {
                 .easing(Easing::EaseInOut)
                 .duration(Duration::from_millis(2000)),
             opened_guild: None,
+            channel_panel_width: 192.0,
         }
     }
 }
@@ -83,22 +87,16 @@ impl Guilds {
         });
 
         let spacing = theme.spacing;
-        scrollable(
-            column([
-                column(folders_preview).spacing(spacing).into(),
-                column(guilds_preview).spacing(spacing).into(),
-            ])
-            .spacing(spacing),
-        )
-        .height(Length::Fill)
-        .style(|theme, status| {
-            let mut style = scrollable::default(theme, status);
+        scrollable(column(folders_preview.chain(guilds_preview)).spacing(spacing))
+            .height(Length::Fill)
+            .style(|theme, status| {
+                let mut style = scrollable::default(theme, status);
 
-            style.vertical_rail.background = None;
-            style.vertical_rail.scroller.background = Background::Color(Color::TRANSPARENT);
+                style.vertical_rail.background = None;
+                style.vertical_rail.scroller.background = Background::Color(Color::TRANSPARENT);
 
-            style
-        })
+                style
+            })
     }
 
     fn opened_folders<'a>(
@@ -136,20 +134,21 @@ impl Guilds {
     }
 
     pub fn show<'a>(&'a self, theme: &'a AppTheme) -> Container<'a, AppEvent> {
-        let theme = &theme.guilds;
         let now = Instant::now();
 
-        let mut content = row![self.guilds_preview(theme)]
-            .padding(theme.padding)
-            .spacing(theme.padding);
+        let mut content = row![self.guilds_preview(&theme.guilds)]
+            .padding(theme.guilds.padding)
+            .spacing(theme.guilds.padding);
 
         if self.folders.values().any(|f| f.is_visible(now)) {
-            let panel_width =
-                self.panel
-                    .interpolate(0.0, theme.size + theme.folder.padding * 2.0, now);
+            let panel_width = self.panel.interpolate(
+                0.0,
+                theme.guilds.size + theme.guilds.folder.padding * 2.0,
+                now,
+            );
 
             content = content.push(
-                container(self.opened_folders(theme, now))
+                container(self.opened_folders(&theme.guilds, now))
                     .width(panel_width)
                     .clip(true)
                     .align_x(Horizontal::Right),
@@ -163,7 +162,7 @@ impl Guilds {
                 .height(Length::Fill)
                 .style(|_| container::Style::default().background(theme.border_color))
         ])
-        .style(|_| container::Style::default().background(theme.background))
+        .style(|_| container::Style::default().background(theme.guilds.background))
     }
 
     pub fn reorganize(&mut self, folders: &GuildFolders, theme: &GuildsTheme) {
@@ -207,10 +206,30 @@ impl Guilds {
         self.opened_guild = Some(guild_id)
     }
 
-    pub fn show_opened_guild_channels(
-        &self,
-        theme: &ChannelsTheme,
-    ) -> Option<Element<'_, AppEvent>> {
-        Some(self.guilds.get(&self.opened_guild?)?.show_channels(theme))
+    pub fn set_channel_panel_width(&mut self, width: f32) {
+        self.channel_panel_width = ChannelResizeHandle::clamp(width);
+    }
+
+    pub fn channel_resize_divider(&self) -> Canvas<ChannelResizeHandle, AppEvent> {
+        Canvas::new(ChannelResizeHandle::new(self.channel_panel_width))
+            .width(6.0)
+            .height(Length::Fill)
+    }
+
+    pub fn show_opened_guild_channels<'a>(
+        &'a self,
+        theme: &'a AppTheme,
+    ) -> Option<Element<'a, AppEvent>> {
+        Some(
+            self.guilds
+                .get(&self.opened_guild?)?
+                .show_channels(theme, self.channel_panel_width),
+        )
+    }
+
+    pub fn toggle_category(&mut self, channel_id: u64) -> Option<()> {
+        self.guilds
+            .get_mut(&self.opened_guild?)?
+            .toggle_category(channel_id)
     }
 }

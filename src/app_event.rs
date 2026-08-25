@@ -22,5 +22,7 @@ pub enum NetworkEvent {
 pub enum AppMessage {
     ToggleFolder(u64),
     OpenGuild(u64),
+    ChannelPanelResized(f32),
+    ToggleCategory(u64),
     Tick,
 }

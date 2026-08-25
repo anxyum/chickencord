@@ -2,10 +2,25 @@ use std::time::Duration;
 
 use iced::Color;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct AppTheme {
     pub guilds: GuildsTheme,
     pub channels: ChannelsTheme,
+
+    pub border_size: f32,
+    pub border_color: Color,
+}
+
+impl Default for AppTheme {
+    fn default() -> Self {
+        Self {
+            guilds: Default::default(),
+            channels: Default::default(),
+
+            border_size: 1.0,
+            border_color: Color::from_rgb8(35, 35, 35),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -17,10 +32,7 @@ pub struct GuildsTheme {
     pub radius: f32,
     pub spacing: f32,
 
-    pub border_size: f32,
-
     pub background: Color,
-    pub border_color: Color,
     pub placeholder_background: Color,
 
     pub animation_duration: Duration,
@@ -39,10 +51,7 @@ impl Default for GuildsTheme {
             radius,
             spacing: 8.0,
 
-            border_size: 1.0,
-
             background: Color::BLACK,
-            border_color: Color::from_rgb8(35, 35, 35),
             placeholder_background: Color::BLACK,
 
             animation_duration: Duration::from_millis(200),
@@ -92,5 +101,15 @@ impl GuildFolderTheme {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct ChannelsTheme {}
+#[derive(Debug)]
+pub struct ChannelsTheme {
+    pub background: Color,
+}
+
+impl Default for ChannelsTheme {
+    fn default() -> Self {
+        Self {
+            background: Color::BLACK,
+        }
+    }
+}
