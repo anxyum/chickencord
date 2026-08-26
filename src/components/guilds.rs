@@ -209,7 +209,7 @@ impl Guilds {
         Some(
             self.guilds
                 .get(&self.opened_guild?)?
-                .show_channels(context, self.channel_panel_width),
+                .show_pannel(context, self.channel_panel_width),
         )
     }
 

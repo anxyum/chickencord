@@ -1,8 +1,9 @@
 use super::channel::GuildChannel;
 use crate::{Context, app_event::AppEvent};
 use iced::{
-    Element, Padding,
-    widget::{column, container},
+    Color, Element, Padding,
+    border::Radius,
+    widget::{column, container, scrollable},
 };
 use std::collections::HashMap;
 
@@ -93,11 +94,7 @@ impl Channels {
         self
     }
 
-    pub fn show_channels<'a>(
-        &'a self,
-        context: &'a Context,
-        panel_width: f32,
-    ) -> Element<'a, AppEvent> {
+    pub fn show_channels<'a>(&'a self, context: &'a Context) -> Element<'a, AppEvent> {
         let channels_theme = &context.theme.channels;
 
         let mut uncategorized = self
@@ -128,18 +125,30 @@ impl Channels {
         });
 
         let content = column(uncategorized.chain(categorized))
-            .padding(Padding::new(0.0).horizontal(channels_theme.padding).top(
-                if uncategorized_empty {
+            .padding(
+                Padding::new(channels_theme.padding).top(if uncategorized_empty {
                     0.0
                 } else {
                     channels_theme.category_spacing
-                },
-            ))
+                }),
+            )
             .spacing(channels_theme.spacing);
+        scrollable(content)
+            .style(|theme, status| {
+                let mut style = scrollable::default(theme, status);
+                let border_width = (12.0 - channels_theme.scroller_width) / 2.0;
 
-        container(content)
-            .width(panel_width)
-            .style(|_| container::Style::default().background(context.theme.channels.background))
+                style.container =
+                    container::Style::default().background(context.theme.channels.background);
+                style.vertical_rail.background = None;
+                style.vertical_rail.scroller.background = channels_theme.scroller_color.into();
+                style.vertical_rail.scroller.border.width = border_width;
+                style.vertical_rail.scroller.border.color = Color::TRANSPARENT;
+                style.vertical_rail.scroller.border.radius =
+                    Radius::new(border_width + channels_theme.scroller_width / 2.0);
+
+                style
+            })
             .into()
     }
 

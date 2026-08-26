@@ -10,7 +10,7 @@ use iced::{
     Background, Border, Color, Element, Length, alignment,
     border::Radius,
     widget::{
-        container,
+        column, container,
         image::{Handle, Image},
         text,
     },
@@ -98,12 +98,22 @@ impl Guild {
             .into()
     }
 
-    pub fn show_channels<'a>(
+    pub fn show_pannel<'a>(
         &'a self,
         context: &'a Context,
         panel_width: f32,
     ) -> Element<'a, AppEvent> {
-        self.channels.show_channels(context, panel_width)
+        column([
+            container(text(&self.name).size(16.0)).padding(8.0).into(),
+            container("")
+                .width(Length::Fill)
+                .height(context.theme.border_size)
+                .style(|_| container::Style::default().background(context.theme.border_color))
+                .into(),
+            self.channels.show_channels(context),
+        ])
+        .width(panel_width)
+        .into()
     }
 
     pub fn toggle_category(&mut self, id: u64) -> Option<()> {

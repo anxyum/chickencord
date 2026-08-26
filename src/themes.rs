@@ -111,6 +111,9 @@ pub struct ChannelsTheme {
     pub padding: f32,
 
     pub category_spacing: f32,
+
+    pub scroller_color: Color,
+    pub scroller_width: f32,
 }
 
 impl Default for ChannelsTheme {
@@ -124,6 +127,9 @@ impl Default for ChannelsTheme {
             padding: 8.0,
 
             category_spacing: 16.0,
+
+            scroller_color: Color::from_rgb8(128, 128, 128),
+            scroller_width: 6.0,
         }
     }
 }
