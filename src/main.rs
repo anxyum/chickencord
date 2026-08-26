@@ -8,10 +8,12 @@ use app_event::AppEvent;
 use bytes::Bytes;
 use components::Guilds;
 use iced::{
-    Color, Element, Length, Subscription, Task,
+    Color, Element, Font, Length, Subscription, Task,
     time::{self, Instant},
     widget::{container, image::Handle, row},
 };
+
+pub(crate) const GG_SANS_REGULAR: Font = Font::with_name("gg sans Regular");
 use icons::Icons;
 use std::time::Duration;
 use themes::AppTheme;
@@ -26,6 +28,7 @@ fn main() -> iced::Result {
     dotenvy::dotenv().expect("failed to load .env");
 
     iced::application(|| App::new(), update, view)
+        .font(include_bytes!("../fonts/gg sans Regular.ttf"))
         .subscription(subscription)
         .run()
 }
@@ -121,6 +124,14 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
 
             AppMessage::ToggleCategory(channel_id) => {
                 app.guilds.toggle_category(channel_id);
+            }
+
+            AppMessage::ChannelHover(id, hovered) => {
+                app.guilds.channel_hover(id, hovered);
+            }
+
+            AppMessage::SelectChannel(id) => {
+                app.guilds.select_channel(id);
             }
 
             AppMessage::Tick => {}

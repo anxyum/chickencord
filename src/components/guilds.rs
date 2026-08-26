@@ -4,7 +4,7 @@ use crate::{
     discord_gateway::user_settings::GuildFolders,
 };
 use iced::{
-    Background, Color, Element, Length,
+    Background, Color, Element, Length, Padding,
     alignment::Horizontal,
     animation::{Animation, Easing},
     border::Radius,
@@ -80,16 +80,20 @@ impl Guilds {
         });
 
         let spacing = context.theme.guilds.spacing;
-        scrollable(column(folders_preview.chain(guilds_preview)).spacing(spacing))
-            .height(Length::Fill)
-            .style(|context, status| {
-                let mut style = scrollable::default(context, status);
+        scrollable(
+            column(folders_preview.chain(guilds_preview))
+                .spacing(spacing)
+                .padding(Padding::new(0.0).vertical(context.theme.guilds.padding)),
+        )
+        .height(Length::Fill)
+        .style(|context, status| {
+            let mut style = scrollable::default(context, status);
 
-                style.vertical_rail.background = None;
-                style.vertical_rail.scroller.background = Background::Color(Color::TRANSPARENT);
+            style.vertical_rail.background = None;
+            style.vertical_rail.scroller.background = Background::Color(Color::TRANSPARENT);
 
-                style
-            })
+            style
+        })
     }
 
     fn opened_folders<'a>(
@@ -108,7 +112,8 @@ impl Guilds {
                     None
                 }
             }))
-            .spacing(spacing),
+            .spacing(spacing)
+            .padding(Padding::new(0.0).vertical(context.theme.guilds.padding)),
         )
         .width(context.theme.guilds.size + context.theme.guilds.folder.padding * 2.0)
         .height(Length::Fill)
@@ -126,7 +131,7 @@ impl Guilds {
         let now = Instant::now();
 
         let mut content = row![self.guilds_preview(context)]
-            .padding(context.theme.guilds.padding)
+            .padding(Padding::new(0.0).horizontal(context.theme.guilds.padding))
             .spacing(context.theme.guilds.padding);
 
         if self.folders.values().any(|f| f.is_visible(now)) {
@@ -212,5 +217,18 @@ impl Guilds {
         self.guilds
             .get_mut(&self.opened_guild?)?
             .toggle_category(channel_id)
+    }
+
+    pub fn channel_hover(&mut self, channel_id: u64, hovered: bool) -> Option<()> {
+        self.guilds
+            .get_mut(&self.opened_guild?)?
+            .channel_hover(channel_id, hovered)
+    }
+
+    pub fn select_channel(&mut self, channel_id: u64) -> Option<()> {
+        self.guilds
+            .get_mut(&self.opened_guild?)?
+            .select_channel(channel_id);
+        Some(())
     }
 }

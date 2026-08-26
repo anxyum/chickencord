@@ -1,30 +1,46 @@
 use super::channel::GuildChannel;
-use crate::{
-    Context,
-    app_event::{AppEvent, AppMessage},
-    components::button,
-};
+use crate::{Context, app_event::AppEvent};
 use iced::{
-    Color, Element, alignment,
-    widget::{Svg, column, container, row, text},
+    Element, Padding,
+    widget::{column, container},
 };
-use std::{collections::HashMap, f32::consts::PI};
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Channels {
     channels: HashMap<u64, GuildChannel>,
     channels_order: Vec<u64>,
     categories_order: Vec<u64>,
+    selected_channel: u64,
 }
 
 impl Channels {
     pub fn new(channels: HashMap<u64, GuildChannel>) -> Self {
-        Self {
+        let mut channels = Self {
             channels,
             channels_order: Vec::new(),
             categories_order: Vec::new(),
+            selected_channel: 0,
         }
-        .organize()
+        .organize();
+        channels.selected_channel = channels
+            .channels_order
+            .first()
+            .copied()
+            .or_else(|| {
+                channels.categories_order.first().and_then(|id| {
+                    channels.channels.get(id).and_then(|c| {
+                        if let GuildChannel::Category(c) = c {
+                            c.children.first().copied()
+                        } else {
+                            None
+                        }
+                    })
+                })
+            })
+            .unwrap_or_default();
+
+        channels
     }
 
     fn organize(mut self) -> Self {
@@ -77,55 +93,19 @@ impl Channels {
         self
     }
 
-    fn show_channel<'a>(
-        &self,
-        context: &Context,
-        channel: &'a GuildChannel,
-    ) -> Element<'a, AppEvent> {
-        match channel {
-            GuildChannel::Text(channel) => button(
-                text(&channel.base.name)
-                    .size(16)
-                    .color(Color::from_rgb8(120, 120, 120)),
-            )
-            .into(),
-            GuildChannel::Category(category) => {
-                let channel_id = category.base.id;
-
-                button(
-                    row([
-                        text(&category.base.name)
-                            .size(14)
-                            .color(Color::from_rgb8(120, 120, 120))
-                            .into(),
-                        Svg::new(context.icons.unfold_category.clone())
-                            .width(12)
-                            .height(12)
-                            .rotation(if category.is_open { 0.0 } else { -PI * 0.5 })
-                            .into(),
-                    ])
-                    .align_y(alignment::Vertical::Center)
-                    .spacing(4),
-                )
-                .on_press(AppEvent::Message(AppMessage::ToggleCategory(channel_id)))
-                .into()
-            }
-
-            _ => text("not implemented yet")
-                .color(Color::from_rgb8(255, 0, 0))
-                .into(),
-        }
-    }
-
     pub fn show_channels<'a>(
         &'a self,
         context: &'a Context,
         panel_width: f32,
     ) -> Element<'a, AppEvent> {
-        let uncategorized = self
+        let channels_theme = &context.theme.channels;
+
+        let mut uncategorized = self
             .channels_order
             .iter()
-            .filter_map(|id| Some(self.show_channel(context, self.channels.get(id)?)));
+            .filter_map(|id| Some(self.channels.get(id)?.show(context, self.selected_channel)))
+            .peekable();
+        let uncategorized_empty = uncategorized.peek().is_none();
 
         let categorized = self.categories_order.iter().filter_map(|id| {
             let channel = self.channels.get(id)?;
@@ -133,13 +113,13 @@ impl Channels {
                 return None;
             };
 
-            let mut col = column(std::iter::once(self.show_channel(context, channel)));
+            let mut col = column([channel.show(context, self.selected_channel)])
+                .spacing(channels_theme.spacing);
 
             if category.is_open {
-                let children = category
-                    .children
-                    .iter()
-                    .filter_map(|id| Some(self.show_channel(context, self.channels.get(id)?)));
+                let children = category.children.iter().filter_map(|id| {
+                    Some(self.channels.get(id)?.show(context, self.selected_channel))
+                });
 
                 col = col.extend(children);
             }
@@ -147,9 +127,18 @@ impl Channels {
             Some(col.into())
         });
 
-        let content = container(column(uncategorized.chain(categorized))).width(panel_width);
+        let content = column(uncategorized.chain(categorized))
+            .padding(Padding::new(0.0).horizontal(channels_theme.padding).top(
+                if uncategorized_empty {
+                    0.0
+                } else {
+                    channels_theme.category_spacing
+                },
+            ))
+            .spacing(channels_theme.spacing);
 
         container(content)
+            .width(panel_width)
             .style(|_| container::Style::default().background(context.theme.channels.background))
             .into()
     }
@@ -161,5 +150,14 @@ impl Channels {
         }
 
         Some(())
+    }
+
+    pub fn channel_hover(&mut self, channel_id: u64, hovered: bool) -> Option<()> {
+        self.channels.get_mut(&channel_id)?.set_hovered(hovered);
+        Some(())
+    }
+
+    pub fn select_channel(&mut self, channel_id: u64) {
+        self.selected_channel = channel_id;
     }
 }

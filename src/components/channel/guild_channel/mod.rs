@@ -9,7 +9,7 @@ mod thread;
 mod voice_channel;
 
 use category::Category;
-pub(crate) use channel_base::GuildChannelBase;
+pub use channel_base::GuildChannelBase;
 use forum_channel::ForumChannel;
 use guild_directory::GuildDirectory;
 use guild_store::GuildStore;
@@ -19,7 +19,9 @@ use thread::Thread;
 use voice_channel::VoiceChannel;
 
 use super::{Unknown, nz};
+use crate::{Context, app_event::AppEvent};
 use discord_client_structs::structs::channel::Channel as GatewayChannel;
+use iced::{Color, Element, widget::text};
 
 #[repr(u8)]
 #[derive(Debug)]
@@ -46,6 +48,39 @@ impl GuildChannel {
             Self::Directory(directory) => &directory.base,
             Self::Forum(channel) => &channel.base,
         }
+    }
+
+    pub fn base_mut(&mut self) -> &mut GuildChannelBase {
+        match self {
+            Self::Text(channel) => &mut channel.base,
+            Self::Voice(channel) => &mut channel.base,
+            Self::Category(category) => &mut category.base,
+            Self::Store(store) => &mut store.base,
+            Self::Thread(thread) => &mut thread.base,
+            Self::Stage(channel) => &mut channel.base,
+            Self::Directory(directory) => &mut directory.base,
+            Self::Forum(channel) => &mut channel.base,
+        }
+    }
+
+    pub fn show<'a>(
+        &'a self,
+        context: &'a Context,
+        selected_channel: u64,
+    ) -> Element<'a, AppEvent> {
+        match self {
+            GuildChannel::Text(channel) => channel.show(context, selected_channel).into(),
+            GuildChannel::Category(category) => category.show(context).into(),
+
+            _ => text("not implemented yet")
+                .font(crate::GG_SANS_REGULAR)
+                .color(Color::from_rgb8(255, 0, 0))
+                .into(),
+        }
+    }
+
+    pub fn set_hovered(&mut self, hovered: bool) {
+        self.base_mut().hovered = hovered
     }
 }
 
@@ -81,5 +116,6 @@ pub(crate) fn guild_base(
         position: position.unwrap_or_default(),
         flags,
         parent_id: nz(parent_id),
+        hovered: false,
     }
 }

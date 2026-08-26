@@ -24,5 +24,7 @@ pub enum AppMessage {
     OpenGuild(u64),
     ChannelPanelResized(f32),
     ToggleCategory(u64),
+    ChannelHover(u64, bool),
+    SelectChannel(u64),
     Tick,
 }

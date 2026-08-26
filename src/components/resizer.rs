@@ -4,8 +4,8 @@ use iced::{
     widget::canvas::{self, Frame, Geometry},
 };
 
-const MIN_WIDTH: f32 = 0.0;
-const MAX_WIDTH: f32 = 500.0;
+const MIN_WIDTH: f32 = 192.0;
+const MAX_WIDTH: f32 = 640.0;
 const GRACE_DISTANCE: f32 = 2.0;
 const WIDTH: f32 = 4.0;
 const THICKNESS: f32 = 1.0;

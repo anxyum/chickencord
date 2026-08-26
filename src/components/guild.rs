@@ -66,7 +66,9 @@ impl Guild {
             }
             None => {
                 let placeholder = context.theme.guilds.placeholder_background;
-                let text = text(&self.initials).color(Color::WHITE);
+                let text = text(&self.initials)
+                    .font(crate::GG_SANS_REGULAR)
+                    .color(Color::WHITE);
                 container(text)
                     .width(size)
                     .height(size)
@@ -106,6 +108,14 @@ impl Guild {
 
     pub fn toggle_category(&mut self, id: u64) -> Option<()> {
         self.channels.toggle_category(id)
+    }
+
+    pub fn channel_hover(&mut self, channel_id: u64, hovered: bool) -> Option<()> {
+        self.channels.channel_hover(channel_id, hovered)
+    }
+
+    pub fn select_channel(&mut self, channel_id: u64) {
+        self.channels.select_channel(channel_id);
     }
 }
 

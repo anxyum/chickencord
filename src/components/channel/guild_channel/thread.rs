@@ -67,6 +67,7 @@ impl TryFrom<GatewayChannel> for Thread {
             position: value.position.unwrap_or_default(),
             flags,
             parent_id: Some(parent_id),
+            hovered: false,
         };
 
         Ok(Self {

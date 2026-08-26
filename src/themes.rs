@@ -103,13 +103,87 @@ impl GuildFolderTheme {
 
 #[derive(Debug)]
 pub struct ChannelsTheme {
+    pub channel: ChannelTheme,
+
     pub background: Color,
+
+    pub spacing: f32,
+    pub padding: f32,
+
+    pub category_spacing: f32,
 }
 
 impl Default for ChannelsTheme {
     fn default() -> Self {
         Self {
+            channel: ChannelTheme::default(),
+
             background: Color::BLACK,
+
+            spacing: 2.0,
+            padding: 8.0,
+
+            category_spacing: 16.0,
         }
     }
+}
+
+#[derive(Debug)]
+pub struct ChannelTheme {
+    pub background: StateColors,
+    pub text: StateColors,
+    pub icons: StateColors,
+
+    pub corner_radius: f32,
+
+    pub default_size: f32,
+    pub default_text_size: f32,
+
+    pub category_size: f32,
+    pub category_text_size: f32,
+    pub category_unfold_icon_spacing: f32,
+
+    pub channel_icon_size: f32,
+    pub unfold_category_icon_size: f32,
+}
+
+impl Default for ChannelTheme {
+    fn default() -> Self {
+        Self {
+            background: StateColors {
+                inactive: Color::from_rgba8(150, 150, 150, 0.0),
+                hover: Color::from_rgba8(150, 150, 150, 0.125),
+                active: Color::from_rgba8(150, 150, 150, 0.25),
+            },
+            text: StateColors {
+                inactive: Color::from_rgba8(127, 127, 127, 1.0),
+                hover: Color::from_rgba8(228, 228, 228, 1.0),
+                active: Color::from_rgba8(228, 228, 228, 1.0),
+            },
+            icons: StateColors {
+                inactive: Color::from_rgba8(127, 127, 127, 1.0),
+                hover: Color::from_rgba8(127, 127, 127, 1.0),
+                active: Color::from_rgba8(228, 228, 228, 1.0),
+            },
+
+            corner_radius: 8.0,
+
+            default_size: 32.0,
+            default_text_size: 16.0,
+
+            category_size: 24.0,
+            category_text_size: 14.0,
+            category_unfold_icon_spacing: 4.0,
+
+            channel_icon_size: 20.0,
+            unfold_category_icon_size: 12.0,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct StateColors {
+    pub inactive: Color,
+    pub hover: Color,
+    pub active: Color,
 }
