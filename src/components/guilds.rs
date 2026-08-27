@@ -1,8 +1,11 @@
 use super::{
-    Guild, GuildFolder, Member, Message, channel::GuildChannel, resizer::ChannelResizeHandle,
+    Cache, Channels, Guild, GuildFolder, Member, Message, Messages, User, channel::GuildChannel,
+    resizer::ChannelResizeHandle,
 };
 use crate::{Context, app_event::AppEvent, discord_gateway::user_settings::GuildFolders};
-use discord_client_structs::structs::message::query::MessageQuery;
+use discord_client_structs::structs::{
+    message::query::MessageQuery, user::Member as GatewayMember,
+};
 use iced::{
     Background, Color, Element, Length, Padding,
     alignment::Horizontal,
@@ -15,19 +18,18 @@ use std::{collections::HashMap, time::Duration};
 
 #[derive(Debug)]
 pub struct Guilds {
-    guilds: HashMap<u64, Guild>,
     folders: HashMap<u64, GuildFolder>,
     guild_order: Vec<u64>,
     folder_order: Vec<u64>,
     panel: Animation<bool>,
     opened_guild: Option<u64>,
     channel_panel_width: f32,
+    channels: HashMap<u64, Channels>,
 }
 
 impl Default for Guilds {
     fn default() -> Self {
         Self {
-            guilds: Default::default(),
             folders: Default::default(),
             guild_order: Default::default(),
             folder_order: Default::default(),
@@ -36,6 +38,7 @@ impl Default for Guilds {
                 .duration(Duration::from_millis(2000)),
             opened_guild: None,
             channel_panel_width: 192.0,
+            channels: Default::default(),
         }
     }
 }
@@ -52,28 +55,50 @@ impl Guilds {
 
     pub fn create_guild(
         &mut self,
-        id: u64,
+        guild_id: u64,
         name: String,
         avatar: Option<Handle>,
-        channels: HashMap<u64, GuildChannel>,
-        members: HashMap<u64, Member>,
+        channels: Vec<GuildChannel>,
+        members: Vec<GatewayMember>,
+        cache: &mut Cache,
     ) {
-        self.guilds
-            .insert(id, Guild::new(id, name, avatar, channels, members));
+        cache
+            .guilds
+            .insert(guild_id, Guild::new(guild_id, name, avatar));
+        self.channels
+            .insert(guild_id, Channels::new(guild_id, channels, cache));
+
+        let mut guild_members = HashMap::new();
+
+        for member in members {
+            let Some(user) = member.user else {
+                continue;
+            };
+
+            let id = user.id;
+            guild_members.insert(id, Member { id });
+            cache.users.entry(id).or_insert_with(|| User::from(user));
+        }
+
+        cache
+            .members
+            .entry(guild_id)
+            .or_default()
+            .extend(guild_members);
     }
 
-    fn guilds_preview<'a>(&'a self, context: &'a Context) -> Scrollable<'a, AppEvent> {
-        let folders_preview = self.folder_order.iter().filter_map(|id| {
-            Some(
-                self.folders
-                    .get(&id)?
-                    .show_miniature(context, &self.guilds)
-                    .into(),
-            )
-        });
+    fn guilds_preview<'a>(
+        &'a self,
+        cache: &'a Cache,
+        context: &'a Context,
+    ) -> Scrollable<'a, AppEvent> {
+        let folders_preview = self
+            .folder_order
+            .iter()
+            .filter_map(|id| Some(self.folders.get(&id)?.show_miniature(cache, context).into()));
 
         let guilds_preview = self.guild_order.iter().map(|id| {
-            self.guilds.get(id).unwrap().show_clickable_avatar(
+            cache.guilds.get(id).unwrap().show_clickable_avatar(
                 context,
                 Radius::new(context.theme.guilds.radius),
                 context.theme.guilds.size,
@@ -99,6 +124,7 @@ impl Guilds {
 
     fn opened_folders<'a>(
         &'a self,
+        cache: &'a Cache,
         context: &'a Context,
         now: Instant,
     ) -> Scrollable<'a, AppEvent> {
@@ -108,7 +134,7 @@ impl Guilds {
                 let folder = self.folders.get(&id)?;
 
                 if folder.is_visible(now) {
-                    Some(folder.show_opened(context, &self.guilds, now).into())
+                    Some(folder.show_opened(cache, context, now).into())
                 } else {
                     None
                 }
@@ -128,10 +154,10 @@ impl Guilds {
         })
     }
 
-    pub fn show<'a>(&'a self, context: &'a Context) -> Container<'a, AppEvent> {
+    pub fn show<'a>(&'a self, cache: &'a Cache, context: &'a Context) -> Container<'a, AppEvent> {
         let now = Instant::now();
 
-        let mut content = row![self.guilds_preview(context)]
+        let mut content = row![self.guilds_preview(cache, context)]
             .padding(Padding::new(0.0).horizontal(context.theme.guilds.padding))
             .spacing(context.theme.guilds.padding);
 
@@ -143,7 +169,7 @@ impl Guilds {
             );
 
             content = content.push(
-                container(self.opened_folders(context, now))
+                container(self.opened_folders(cache, context, now))
                     .width(panel_width)
                     .clip(true)
                     .align_x(Horizontal::Right),
@@ -205,44 +231,62 @@ impl Guilds {
 
     pub fn show_opened_guild_channels<'a>(
         &'a self,
+        cache: &'a Cache,
         context: &'a Context,
     ) -> Option<Element<'a, AppEvent>> {
-        Some(
-            self.guilds
-                .get(&self.opened_guild?)?
-                .show_pannel(context, self.channel_panel_width),
-        )
+        let guild_id = self.opened_guild?;
+        let guild = cache.guilds.get(&guild_id)?;
+        let channels = self.channels.get(&guild_id)?;
+
+        Some(guild.show_pannel(cache, channels, context, self.channel_panel_width))
     }
 
     pub fn toggle_category(&mut self, channel_id: u64) -> Option<()> {
-        self.guilds
+        self.channels
             .get_mut(&self.opened_guild?)?
             .toggle_category(channel_id)
     }
 
-    pub fn channel_hover(&mut self, channel_id: u64, hovered: bool) -> Option<()> {
-        self.guilds
-            .get_mut(&self.opened_guild?)?
-            .channel_hover(channel_id, hovered)
+    pub fn channel_hover(
+        &mut self,
+        cache: &mut Cache,
+        channel_id: u64,
+        hovered: bool,
+    ) -> Option<()> {
+        cache.channels.get_mut(&channel_id)?.set_hovered(hovered);
+        Some(())
     }
 
     pub fn select_channel(&mut self, guild_id: u64, channel_id: u64) -> Option<()> {
-        self.guilds.get_mut(&guild_id)?.select_channel(channel_id);
+        self.channels.get_mut(&guild_id)?.select_channel(channel_id);
         Some(())
     }
 
     pub fn load_messages(
         &mut self,
-        guild_id: u64,
+        cache: &mut Cache,
         channel_id: u64,
         query: MessageQuery,
         messages: Vec<Message>,
-    ) -> Option<()> {
-        let guild = self.guilds.get_mut(&guild_id)?;
-        guild.load_messages(channel_id, query, messages)
+    ) {
+        cache
+            .messages
+            .entry(channel_id)
+            .or_insert_with(Messages::new)
+            .load_messages(query, messages);
     }
 
-    pub fn show_body(&self, context: &Context) -> Option<Element<'_, AppEvent>> {
-        self.guilds.get(&self.opened_guild?)?.show_body(context)
+    pub fn show_body<'a>(
+        &'a self,
+        cache: &'a Cache,
+        context: &'a Context,
+    ) -> Option<Element<'a, AppEvent>> {
+        let guild_id = self.opened_guild?;
+        let channels = self.channels.get(&guild_id)?;
+        let channel_id = channels.selected_channel();
+        let channel = cache.channels.get(&channel_id)?;
+        let messages = cache.messages.get(&channel_id);
+
+        channel.show_body(messages, context)
     }
 }

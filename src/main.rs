@@ -7,7 +7,7 @@ mod themes;
 
 use app_event::{AppEvent, AppMessage, NetworkEvent};
 use bytes::Bytes;
-use components::{Channel, Guilds, Member};
+use components::{Cache, Channel, Guilds};
 use discord_client_structs::structs::message::query::MessageQuery;
 use discord_gateway::PreloadedUserSettings;
 use discord_rest::{RestChannels, RestResponse};
@@ -80,6 +80,7 @@ impl Context {
 #[derive(Default, Debug)]
 struct App {
     guilds: Guilds,
+    cache: Cache,
     context: Context,
 }
 
@@ -89,6 +90,7 @@ impl App {
 
         Self {
             guilds: Guilds::new(&context),
+            cache: Cache::default(),
             context,
         }
     }
@@ -105,31 +107,18 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
                 members,
             } => {
                 let avatar = avatar.map(|bytes| Handle::from_bytes(Bytes::from(bytes)));
-                app.guilds.create_guild(
-                    guild_id,
-                    name,
-                    avatar,
-                    channels
-                        .into_iter()
-                        .filter_map(|c| {
-                            let channel = c.try_into().ok()?;
-                            match channel {
-                                Channel::Guild(mut channel) => {
-                                    channel.base_mut().guild_id = guild_id;
-                                    Some((channel.base().id, channel))
-                                }
-                                _ => None,
-                            }
-                        })
-                        .collect(),
-                    members
-                        .into_iter()
-                        .filter_map(|m| {
-                            let member: Member = m.try_into().ok()?;
-                            Some((member.id, member))
-                        })
-                        .collect(),
-                );
+
+                let channels = channels
+                    .into_iter()
+                    .filter_map(|c| c.try_into().ok())
+                    .filter_map(|channel| match channel {
+                        Channel::Guild(channel) => Some(channel),
+                        _ => None,
+                    })
+                    .collect();
+
+                app.guilds
+                    .create_guild(guild_id, name, avatar, channels, members, &mut app.cache);
             }
 
             NetworkEvent::UserSettings(user_settings) => {
@@ -143,18 +132,16 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
         AppEvent::Rest(response) => match response {
             RestResponse::Messages {
                 channel_id,
-                guild_id,
                 query,
                 messages,
+                ..
             } => {
-                if let Some(guild_id) = guild_id {
-                    let messages = messages
-                        .into_iter()
-                        .filter_map(|m| m.try_into().ok())
-                        .collect();
-                    app.guilds
-                        .load_messages(guild_id, channel_id, query, messages);
-                }
+                let messages = messages
+                    .into_iter()
+                    .filter_map(|m| m.try_into().ok())
+                    .collect();
+                app.guilds
+                    .load_messages(&mut app.cache, channel_id, query, messages);
             }
         },
 
@@ -176,7 +163,7 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
             }
 
             AppMessage::ChannelHover(id, hovered) => {
-                app.guilds.channel_hover(id, hovered);
+                app.guilds.channel_hover(&mut app.cache, id, hovered);
             }
 
             AppMessage::SelectChannel {
@@ -210,14 +197,17 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
 }
 
 fn view(app: &App) -> Element<'_, AppEvent> {
-    let mut content = row![app.guilds.show(&app.context)];
+    let mut content = row![app.guilds.show(&app.cache, &app.context)];
 
-    if let Some(channels) = app.guilds.show_opened_guild_channels(&app.context) {
+    if let Some(channels) = app
+        .guilds
+        .show_opened_guild_channels(&app.cache, &app.context)
+    {
         content = content.push(channels);
         content = content.push(app.guilds.channel_resize_divider());
     }
 
-    if let Some(body) = app.guilds.show_body(&app.context) {
+    if let Some(body) = app.guilds.show_body(&app.cache, &app.context) {
         content = content.push(body);
     }
 

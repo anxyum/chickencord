@@ -1,4 +1,4 @@
-use super::Guild;
+use super::Cache;
 use crate::{
     Context,
     app_event::{AppEvent, AppMessage},
@@ -11,8 +11,6 @@ use iced::{
     time::Instant,
     widget::{Button, Container, Svg, button as iced_button, column, container, row},
 };
-use std::collections::HashMap;
-
 #[derive(Debug)]
 pub struct GuildFolder {
     guilds: Vec<u64>,
@@ -46,11 +44,11 @@ impl GuildFolder {
         self.is_open || self.is_animating(now)
     }
 
-    fn content_height(&self, context: &Context, guilds: &HashMap<u64, Guild>) -> f32 {
+    fn content_height(&self, context: &Context, cache: &Cache) -> f32 {
         let count = self
             .guilds
             .iter()
-            .filter(|id| guilds.contains_key(*id))
+            .filter(|id| cache.guilds.contains_key(*id))
             .count() as f32;
 
         context.theme.guilds.size * (count + 1.0)
@@ -58,8 +56,8 @@ impl GuildFolder {
             + context.theme.guilds.folder.padding * 2.0
     }
 
-    fn height(&self, context: &Context, guilds: &HashMap<u64, Guild>, now: Instant) -> f32 {
-        let target = self.content_height(context, guilds);
+    fn height(&self, context: &Context, cache: &Cache, now: Instant) -> f32 {
+        let target = self.content_height(context, cache);
 
         self.animation.interpolate(0.0, target, now)
     }
@@ -91,13 +89,13 @@ impl GuildFolder {
 
     pub fn show_miniature<'a>(
         &'a self,
+        cache: &'a Cache,
         context: &'a Context,
-        guilds: &'a HashMap<u64, Guild>,
     ) -> Container<'a, AppEvent> {
         let guild = |index: usize, radius: Radius| {
             self.guilds
                 .get(index)
-                .and_then(|id| guilds.get(id))
+                .and_then(|id| cache.guilds.get(id))
                 .map(|guild| {
                     guild.show_avatar(
                         context,
@@ -157,13 +155,13 @@ impl GuildFolder {
 
     pub fn show_opened<'a>(
         &'a self,
+        cache: &'a Cache,
         context: &'a Context,
-        guilds: &'a HashMap<u64, Guild>,
         now: Instant,
     ) -> Container<'a, AppEvent> {
         let col =
             column([self.show_icon(context).into()]).extend(self.guilds.iter().filter_map(|id| {
-                Some(guilds.get(id)?.show_clickable_avatar(
+                Some(cache.guilds.get(id)?.show_clickable_avatar(
                     context,
                     Radius::new(context.theme.guilds.radius),
                     context.theme.guilds.size,
@@ -172,7 +170,7 @@ impl GuildFolder {
 
         container(
             container(col.spacing(context.theme.guilds.spacing))
-                .height(self.content_height(context, guilds))
+                .height(self.content_height(context, cache))
                 .padding(context.theme.guilds.folder.padding)
                 .style(|_| {
                     container::Style::default()
@@ -183,7 +181,7 @@ impl GuildFolder {
                         })
                 }),
         )
-        .height(self.height(context, guilds, now))
+        .height(self.height(context, cache, now))
         .clip(true)
     }
 }

@@ -19,10 +19,8 @@ use thread::Thread;
 use voice_channel::VoiceChannel;
 
 use super::{Unknown, nz};
-use crate::{Context, app_event::AppEvent, components::Message};
-use discord_client_structs::structs::{
-    channel::Channel as GatewayChannel, message::query::MessageQuery,
-};
+use crate::{Context, app_event::AppEvent, components::Messages};
+use discord_client_structs::structs::channel::Channel as GatewayChannel;
 use iced::{Color, Element, widget::text};
 
 #[repr(u8)]
@@ -69,10 +67,11 @@ impl GuildChannel {
         &'a self,
         context: &'a Context,
         selected_channel: u64,
+        is_open: bool,
     ) -> Element<'a, AppEvent> {
         match self {
             GuildChannel::Text(channel) => channel.show(context, selected_channel).into(),
-            GuildChannel::Category(category) => category.show(context).into(),
+            GuildChannel::Category(category) => category.show(context, is_open).into(),
 
             _ => text("not implemented yet")
                 .font(crate::GG_SANS_REGULAR)
@@ -85,19 +84,14 @@ impl GuildChannel {
         self.base_mut().hovered = hovered
     }
 
-    pub fn show_body(&self, context: &Context) -> Option<Element<'_, AppEvent>> {
+    pub fn show_body<'a>(
+        &'a self,
+        messages: Option<&'a Messages>,
+        context: &'a Context,
+    ) -> Option<Element<'a, AppEvent>> {
         match self {
-            Self::Text(channel) => Some(channel.show_body(context)),
+            Self::Text(channel) => Some(channel.show_body(messages, context)),
             _ => None,
-        }
-    }
-
-    pub fn load_messages(&mut self, query: MessageQuery, messages: Vec<Message>) {
-        match self {
-            Self::Text(channel) => {
-                channel.load_messages(query, messages);
-            }
-            _ => {}
         }
     }
 }

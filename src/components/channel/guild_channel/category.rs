@@ -13,12 +13,10 @@ use std::f32::consts::PI;
 #[derive(Debug)]
 pub struct Category {
     pub base: GuildChannelBase,
-    pub children: Vec<u64>,
-    pub is_open: bool,
 }
 
 impl Category {
-    pub fn show(&self, context: &Context) -> Container<'_, AppEvent> {
+    pub fn show(&self, context: &Context, is_open: bool) -> Container<'_, AppEvent> {
         let channel_id = self.base.id;
 
         let channel_theme = &context.theme.channels.channel;
@@ -40,7 +38,7 @@ impl Category {
                     Svg::new(context.icons.unfold_category.clone())
                         .width(channel_theme.unfold_category_icon_size)
                         .height(channel_theme.unfold_category_icon_size)
-                        .rotation(if self.is_open { 0.0 } else { -PI * 0.5 })
+                        .rotation(if is_open { 0.0 } else { -PI * 0.5 })
                         .style(move |_, _| svg::Style { color: Some(color) })
                         .into(),
                 ])
@@ -79,8 +77,6 @@ impl TryFrom<GatewayChannel> for Category {
                 flags,
                 value.parent_id,
             ),
-            children: Vec::new(),
-            is_open: true,
         })
     }
 }

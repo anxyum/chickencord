@@ -1,123 +1,137 @@
-use super::{Message, channel::GuildChannel};
+use super::{Cache, Messages, channel::GuildChannel};
 use crate::{Context, app_event::AppEvent};
-use discord_client_structs::structs::message::query::MessageQuery;
 use iced::{
     Color, Element, Padding,
     border::Radius,
     widget::{column, container, scrollable},
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug)]
 pub struct Channels {
-    channels: HashMap<u64, GuildChannel>,
     channels_order: Vec<u64>,
     categories_order: Vec<u64>,
+    children: HashMap<u64, Vec<u64>>,
+    open_categories: HashSet<u64>,
     selected_channel: u64,
 }
 
 impl Channels {
-    pub fn new(channels: HashMap<u64, GuildChannel>) -> Self {
-        let mut channels = Self {
-            channels,
-            channels_order: Vec::new(),
-            categories_order: Vec::new(),
-            selected_channel: 0,
+    pub fn new(
+        guild_id: u64,
+        channels: impl IntoIterator<Item = GuildChannel>,
+        cache: &mut Cache,
+    ) -> Self {
+        let mut channels_order = Vec::new();
+        let mut categories_order = Vec::new();
+        let mut children: HashMap<u64, Vec<u64>> = HashMap::new();
+        let mut positions: HashMap<u64, i64> = HashMap::new();
+
+        for mut channel in channels {
+            channel.base_mut().guild_id = guild_id;
+
+            let parent = channel.base().parent_id;
+            let is_category = matches!(&channel, GuildChannel::Category(_));
+            let is_text = matches!(&channel, GuildChannel::Text(_));
+            let id = channel.base().id;
+            let position = channel.base().position;
+
+            if is_text {
+                cache.messages.insert(id, Messages::new());
+            }
+
+            positions.insert(id, position);
+            cache.channels.insert(id, channel);
+
+            match parent {
+                Some(parent) => children.entry(parent.get()).or_default().push(id),
+                None if is_category => categories_order.push(id),
+                None => channels_order.push(id),
+            }
         }
-        .organize();
-        channels.selected_channel = channels
-            .channels_order
+
+        let by_position = |id: &u64| positions.get(id).copied();
+
+        channels_order.sort_by_key(by_position);
+        categories_order.sort_by_key(by_position);
+
+        for siblings in children.values_mut() {
+            siblings.sort_by_key(by_position);
+        }
+
+        let selected_channel = channels_order
             .first()
             .copied()
             .or_else(|| {
-                channels.categories_order.first().and_then(|id| {
-                    channels.channels.get(id).and_then(|c| {
-                        if let GuildChannel::Category(c) = c {
-                            c.children.first().copied()
-                        } else {
-                            None
-                        }
-                    })
+                categories_order.first().and_then(|id| {
+                    children
+                        .get(id)
+                        .and_then(|siblings| siblings.first())
+                        .copied()
                 })
             })
             .unwrap_or_default();
 
-        channels
+        let open_categories = categories_order.iter().copied().collect();
+
+        Self {
+            channels_order,
+            categories_order,
+            children,
+            open_categories,
+            selected_channel,
+        }
     }
 
-    fn organize(mut self) -> Self {
-        self.channels_order.clear();
-        self.categories_order.clear();
-
-        for channel in self.channels.values_mut() {
-            if let GuildChannel::Category(category) = channel {
-                category.children.clear();
-            }
-        }
-
-        let mut child_channels = Vec::new();
-
-        for (id, channel) in &self.channels {
-            match channel.base().parent_id {
-                Some(parent_id) => child_channels.push((*id, parent_id.get())),
-                None => match channel {
-                    GuildChannel::Category(_) => self.categories_order.push(*id),
-                    _ => self.channels_order.push(*id),
-                },
-            }
-        }
-
-        for (id, parent_id) in child_channels {
-            match self.channels.get_mut(&parent_id) {
-                Some(GuildChannel::Category(category)) => category.children.push(id),
-
-                _ => self.channels_order.push(id),
-            }
-        }
-
-        let positions: HashMap<u64, i64> = self
-            .channels
-            .iter()
-            .map(|(id, channel)| (*id, channel.base().position))
-            .collect();
-
-        let by_position = |id: &u64| positions.get(id).copied();
-
-        self.channels_order.sort_by_key(by_position);
-        self.categories_order.sort_by_key(by_position);
-
-        for channel in self.channels.values_mut() {
-            if let GuildChannel::Category(category) = channel {
-                category.children.sort_by_key(by_position);
-            }
-        }
-
-        self
+    pub fn selected_channel(&self) -> u64 {
+        self.selected_channel
     }
 
-    pub fn show_channels<'a>(&'a self, context: &'a Context) -> Element<'a, AppEvent> {
+    pub fn show_channels<'a>(
+        &'a self,
+        cache: &'a Cache,
+        context: &'a Context,
+    ) -> Element<'a, AppEvent> {
         let channels_theme = &context.theme.channels;
 
         let mut uncategorized = self
             .channels_order
             .iter()
-            .filter_map(|id| Some(self.channels.get(id)?.show(context, self.selected_channel)))
+            .filter_map(|id| {
+                Some(
+                    cache
+                        .channels
+                        .get(id)?
+                        .show(context, self.selected_channel, false),
+                )
+            })
             .peekable();
         let uncategorized_empty = uncategorized.peek().is_none();
 
         let categorized = self.categories_order.iter().filter_map(|id| {
-            let channel = self.channels.get(id)?;
-            let GuildChannel::Category(category) = channel else {
+            let channel = cache.channels.get(id)?;
+            let GuildChannel::Category(_) = channel else {
                 return None;
             };
 
-            let mut col = column([channel.show(context, self.selected_channel)])
+            let is_open = self.open_categories.contains(id);
+
+            let mut col = column([channel.show(context, self.selected_channel, is_open)])
                 .spacing(channels_theme.spacing);
 
-            if category.is_open {
-                let children = category.children.iter().filter_map(|id| {
-                    Some(self.channels.get(id)?.show(context, self.selected_channel))
-                });
+            if is_open {
+                let children =
+                    self.children
+                        .get(id)
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|id| {
+                            Some(cache.channels.get(id)?.show(
+                                context,
+                                self.selected_channel,
+                                false,
+                            ))
+                        });
 
                 col = col.extend(children);
             }
@@ -154,38 +168,16 @@ impl Channels {
     }
 
     pub fn toggle_category(&mut self, id: u64) -> Option<()> {
-        match self.channels.get_mut(&id)? {
-            GuildChannel::Category(category) => category.is_open = !category.is_open,
-            _ => return None,
+        if self.open_categories.contains(&id) {
+            self.open_categories.remove(&id);
+        } else {
+            self.open_categories.insert(id);
         }
 
         Some(())
     }
 
-    pub fn channel_hover(&mut self, channel_id: u64, hovered: bool) -> Option<()> {
-        self.channels.get_mut(&channel_id)?.set_hovered(hovered);
-        Some(())
-    }
-
     pub fn select_channel(&mut self, channel_id: u64) {
         self.selected_channel = channel_id;
-    }
-
-    pub fn load_messages(
-        &mut self,
-        channel_id: u64,
-        query: MessageQuery,
-        messages: Vec<Message>,
-    ) -> Option<()> {
-        self.channels
-            .get_mut(&channel_id)?
-            .load_messages(query, messages);
-        Some(())
-    }
-
-    pub fn show_body(&self, context: &Context) -> Option<Element<'_, AppEvent>> {
-        self.channels
-            .get(&self.selected_channel)?
-            .show_body(context)
     }
 }

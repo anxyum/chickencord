@@ -74,13 +74,12 @@ impl TryFrom<GatewayChannel> for ForumChannel {
             })
             .collect();
 
-        let default_reaction_emoji =
-            value
-                .default_reaction_emoji
-                .map(|reaction| DefaultReaction {
-                    emoji_id: reaction.emoji_id,
-                    emoji_name: reaction.emoji_name,
-                });
+        let default_reaction_emoji = value
+            .default_reaction_emoji
+            .map(|reaction| DefaultReaction {
+                emoji_id: reaction.emoji_id,
+                emoji_name: reaction.emoji_name,
+            });
 
         Ok(Self {
             base,

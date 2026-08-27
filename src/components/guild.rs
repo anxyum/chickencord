@@ -1,10 +1,9 @@
-use super::{Channels, Member, channel::GuildChannel};
+use super::{Cache, Channels};
 use crate::{
     Context,
     app_event::{AppEvent, AppMessage},
-    components::{Message, button},
+    components::button,
 };
-use discord_client_structs::structs::message::query::MessageQuery;
 use iced::{
     Background, Border, Color, Element, Length, alignment,
     border::Radius,
@@ -14,7 +13,6 @@ use iced::{
         text,
     },
 };
-use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Guild {
@@ -22,18 +20,10 @@ pub struct Guild {
     name: String,
     initials: String,
     avatar: Option<Handle>,
-    channels: Channels,
-    members: HashMap<u64, Member>,
 }
 
 impl Guild {
-    pub fn new(
-        id: u64,
-        name: String,
-        avatar: Option<Handle>,
-        channels: HashMap<u64, GuildChannel>,
-        members: HashMap<u64, Member>,
-    ) -> Self {
+    pub fn new(id: u64, name: String, avatar: Option<Handle>) -> Self {
         let initials = get_initials(&name);
 
         Self {
@@ -41,8 +31,6 @@ impl Guild {
             name,
             initials,
             avatar,
-            channels: Channels::new(channels),
-            members,
         }
     }
 
@@ -103,6 +91,8 @@ impl Guild {
 
     pub fn show_pannel<'a>(
         &'a self,
+        cache: &'a Cache,
+        channels: &'a Channels,
         context: &'a Context,
         panel_width: f32,
     ) -> Element<'a, AppEvent> {
@@ -113,35 +103,10 @@ impl Guild {
                 .height(context.theme.border_size)
                 .style(|_| container::Style::default().background(context.theme.border_color))
                 .into(),
-            self.channels.show_channels(context),
+            channels.show_channels(cache, context),
         ])
         .width(panel_width)
         .into()
-    }
-
-    pub fn toggle_category(&mut self, id: u64) -> Option<()> {
-        self.channels.toggle_category(id)
-    }
-
-    pub fn channel_hover(&mut self, channel_id: u64, hovered: bool) -> Option<()> {
-        self.channels.channel_hover(channel_id, hovered)
-    }
-
-    pub fn select_channel(&mut self, channel_id: u64) {
-        self.channels.select_channel(channel_id);
-    }
-
-    pub fn load_messages(
-        &mut self,
-        channel_id: u64,
-        query: MessageQuery,
-        messages: Vec<Message>,
-    ) -> Option<()> {
-        self.channels.load_messages(channel_id, query, messages)
-    }
-
-    pub fn show_body(&self, context: &Context) -> Option<Element<'_, AppEvent>> {
-        self.channels.show_body(context)
     }
 }
 

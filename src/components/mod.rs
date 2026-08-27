@@ -1,4 +1,5 @@
 mod button;
+mod cache;
 pub mod channel;
 mod channels;
 mod guild;
@@ -8,8 +9,10 @@ mod member;
 mod message;
 mod messages;
 mod resizer;
+mod user;
 
 pub use button::button;
+pub use cache::Cache;
 pub use channel::Channel;
 pub use channels::Channels;
 pub use guild::Guild;
@@ -18,3 +21,4 @@ pub use guilds::Guilds;
 pub use member::Member;
 pub use message::Message;
 pub use messages::Messages;
+pub use user::User;

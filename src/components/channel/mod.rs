@@ -57,7 +57,9 @@ impl TryFrom<GatewayChannel> for Channel {
     }
 }
 
-pub(crate) fn recipients(recipients: Option<Vec<discord_client_structs::structs::user::User>>) -> Vec<u64> {
+pub(crate) fn recipients(
+    recipients: Option<Vec<discord_client_structs::structs::user::User>>,
+) -> Vec<u64> {
     recipients
         .unwrap_or_default()
         .into_iter()

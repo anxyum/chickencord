@@ -2,13 +2,12 @@ use super::{GatewayChannel, GuildChannelBase, Unknown, guild_base};
 use crate::{
     Context,
     app_event::{AppEvent, AppMessage},
-    components::{Message, Messages},
+    components::Messages,
 };
-use discord_client_structs::structs::message::query::MessageQuery;
 use iced::{
     Background, Border, Element, Length, Padding, Shadow, alignment,
     mouse::Interaction,
-    widget::{MouseArea, Svg, container, mouse_area, row, svg, text},
+    widget::{MouseArea, Svg, column, container, mouse_area, row, svg, text},
 };
 
 #[derive(Debug)]
@@ -22,9 +21,6 @@ pub struct TextChannel {
     pub last_pin_timestamp: Option<String>,
     pub default_auto_archive_duration: u32,
     pub default_thread_rate_limit_per_user: u32,
-
-    pub messages: Messages,
-    pub loaded: bool,
 }
 
 #[repr(u8)]
@@ -112,12 +108,14 @@ impl TextChannel {
         }))
     }
 
-    pub fn show_body(&self, context: &Context) -> Element<'_, AppEvent> {
-        self.messages.show(context)
-    }
-
-    pub fn load_messages(&mut self, query: MessageQuery, messages: Vec<Message>) {
-        self.messages.load_messages(query, messages);
+    pub fn show_body<'a>(
+        &'a self,
+        messages: Option<&'a Messages>,
+        context: &'a Context,
+    ) -> Element<'a, AppEvent> {
+        messages
+            .map(|messages| messages.show(context))
+            .unwrap_or_else(|| column![].into())
     }
 }
 
@@ -162,9 +160,6 @@ impl TryFrom<GatewayChannel> for TextChannel {
             last_pin_timestamp,
             default_auto_archive_duration,
             default_thread_rate_limit_per_user,
-
-            messages: Messages::new(),
-            loaded: false,
         })
     }
 }
