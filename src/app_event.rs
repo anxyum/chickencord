@@ -1,9 +1,11 @@
 use crate::discord_gateway::PreloadedUserSettings;
-use discord_client_structs::structs::channel::Channel;
+use crate::discord_rest::RestResponse;
+use discord_client_structs::structs::{channel::Channel, user::Member};
 
 #[derive(Clone)]
 pub enum AppEvent {
     Network(NetworkEvent),
+    Rest(RestResponse),
     Message(AppMessage),
 }
 
@@ -14,6 +16,7 @@ pub enum NetworkEvent {
         name: String,
         avatar: Option<Vec<u8>>,
         channels: Vec<Channel>,
+        members: Vec<Member>,
     },
     UserSettings(PreloadedUserSettings),
 }
@@ -25,6 +28,6 @@ pub enum AppMessage {
     ChannelPanelResized(f32),
     ToggleCategory(u64),
     ChannelHover(u64, bool),
-    SelectChannel(u64),
+    SelectChannel { guild_id: u64, channel_id: u64 },
     Tick,
 }

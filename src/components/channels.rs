@@ -1,5 +1,6 @@
-use super::channel::GuildChannel;
+use super::{Message, channel::GuildChannel};
 use crate::{Context, app_event::AppEvent};
+use discord_client_structs::structs::message::query::MessageQuery;
 use iced::{
     Color, Element, Padding,
     border::Radius,
@@ -168,5 +169,23 @@ impl Channels {
 
     pub fn select_channel(&mut self, channel_id: u64) {
         self.selected_channel = channel_id;
+    }
+
+    pub fn load_messages(
+        &mut self,
+        channel_id: u64,
+        query: MessageQuery,
+        messages: Vec<Message>,
+    ) -> Option<()> {
+        self.channels
+            .get_mut(&channel_id)?
+            .load_messages(query, messages);
+        Some(())
+    }
+
+    pub fn show_body(&self, context: &Context) -> Option<Element<'_, AppEvent>> {
+        self.channels
+            .get(&self.selected_channel)?
+            .show_body(context)
     }
 }

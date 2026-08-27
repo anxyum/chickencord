@@ -10,6 +10,7 @@ opt-level = 1
 anyhow = "1.0.104"
 base64 = "0.23.1"
 bytes = "1.12.1"
+chrono = "0.4.45"
 discord_client_gateway = { git = "https://github.com/UwUDev/discord-client-rs", rev = "5e1649297c5573827b4ef43921e0738c44814f8a" }
 discord_client_rest = { git = "https://github.com/UwUDev/discord-client-rs", rev = "5e1649297c5573827b4ef43921e0738c44814f8a" }
 discord_client_structs = { git = "https://github.com/UwUDev/discord-client-rs", rev = "5e1649297c5573827b4ef43921e0738c44814f8a" }

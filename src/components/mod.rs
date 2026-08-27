@@ -4,6 +4,9 @@ mod channels;
 mod guild;
 mod guild_folder;
 mod guilds;
+mod member;
+mod message;
+mod messages;
 mod resizer;
 
 pub use button::button;
@@ -12,3 +15,6 @@ pub use channels::Channels;
 pub use guild::Guild;
 pub use guild_folder::GuildFolder;
 pub use guilds::Guilds;
+pub use member::Member;
+pub use message::Message;
+pub use messages::Messages;

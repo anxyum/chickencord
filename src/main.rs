@@ -1,28 +1,28 @@
 mod app_event;
 mod components;
 mod discord_gateway;
+mod discord_rest;
 mod icons;
 mod themes;
 
-use app_event::AppEvent;
+use app_event::{AppEvent, AppMessage, NetworkEvent};
 use bytes::Bytes;
-use components::Guilds;
+use components::{Channel, Guilds, Member};
+use discord_client_structs::structs::message::query::MessageQuery;
+use discord_gateway::PreloadedUserSettings;
+use discord_rest::{RestChannels, RestResponse};
 use iced::{
     Color, Element, Font, Length, Subscription, Task,
     time::{self, Instant},
     widget::{container, image::Handle, row},
 };
-
-pub(crate) const GG_SANS_REGULAR: Font = Font::with_name("gg sans Regular");
 use icons::Icons;
 use std::time::Duration;
 use themes::AppTheme;
 
-use crate::{
-    app_event::{AppMessage, NetworkEvent},
-    components::Channel,
-    discord_gateway::PreloadedUserSettings,
-};
+use crate::discord_rest::RestRequest;
+
+pub(crate) const GG_SANS_REGULAR: Font = Font::with_name("gg sans Regular");
 
 fn main() -> iced::Result {
     dotenvy::dotenv().expect("failed to load .env");
@@ -34,7 +34,12 @@ fn main() -> iced::Result {
 }
 
 fn subscription(app: &App) -> Subscription<AppEvent> {
-    let mut subscriptions = vec![Subscription::run(discord_gateway::worker)];
+    let mut subscriptions = vec![
+        Subscription::run(discord_gateway::worker),
+        Subscription::run_with(app.context.rest.response_receiver.clone(), |handle| {
+            discord_rest::worker(handle.0.clone())
+        }),
+    ];
 
     if app.guilds.is_animating() {
         subscriptions.push(
@@ -45,15 +50,30 @@ fn subscription(app: &App) -> Subscription<AppEvent> {
     Subscription::batch(subscriptions)
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct Context {
     pub theme: AppTheme,
     pub icons: Icons,
+    pub rest: RestChannels,
+}
+
+impl Default for Context {
+    fn default() -> Self {
+        Self {
+            theme: AppTheme::default(),
+            icons: Icons::default(),
+            rest: discord_rest::start(),
+        }
+    }
 }
 
 impl Context {
     pub fn new(theme: AppTheme, icons: Icons) -> Self {
-        Self { theme, icons }
+        Self {
+            theme,
+            icons,
+            rest: discord_rest::start(),
+        }
     }
 }
 
@@ -78,14 +98,15 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
     match message {
         AppEvent::Network(event) => match event {
             NetworkEvent::CreateGuild {
-                id,
+                id: guild_id,
                 name,
                 avatar,
                 channels,
+                members,
             } => {
                 let avatar = avatar.map(|bytes| Handle::from_bytes(Bytes::from(bytes)));
                 app.guilds.create_guild(
-                    id,
+                    guild_id,
                     name,
                     avatar,
                     channels
@@ -93,9 +114,19 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
                         .filter_map(|c| {
                             let channel = c.try_into().ok()?;
                             match channel {
-                                Channel::Guild(channel) => Some((channel.base().id, channel)),
+                                Channel::Guild(mut channel) => {
+                                    channel.base_mut().guild_id = guild_id;
+                                    Some((channel.base().id, channel))
+                                }
                                 _ => None,
                             }
+                        })
+                        .collect(),
+                    members
+                        .into_iter()
+                        .filter_map(|m| {
+                            let member: Member = m.try_into().ok()?;
+                            Some((member.id, member))
                         })
                         .collect(),
                 );
@@ -105,6 +136,24 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
                 let PreloadedUserSettings { guild_folders, .. } = user_settings;
                 if let Some(guild_folders) = guild_folders {
                     app.guilds.reorganize(guild_folders, &app.context)
+                }
+            }
+        },
+
+        AppEvent::Rest(response) => match response {
+            RestResponse::Messages {
+                channel_id,
+                guild_id,
+                query,
+                messages,
+            } => {
+                if let Some(guild_id) = guild_id {
+                    let messages = messages
+                        .into_iter()
+                        .filter_map(|m| m.try_into().ok())
+                        .collect();
+                    app.guilds
+                        .load_messages(guild_id, channel_id, query, messages);
                 }
             }
         },
@@ -130,8 +179,27 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
                 app.guilds.channel_hover(id, hovered);
             }
 
-            AppMessage::SelectChannel(id) => {
-                app.guilds.select_channel(id);
+            AppMessage::SelectChannel {
+                guild_id,
+                channel_id,
+            } => {
+                app.guilds.select_channel(guild_id, channel_id);
+                let request_sender = app.context.rest.request_sender.clone();
+
+                tokio::spawn(async move {
+                    _ = request_sender
+                        .send(RestRequest::FetchMessages {
+                            channel_id,
+                            guild_id: Some(guild_id),
+                            query: MessageQuery {
+                                around: None,
+                                before: None,
+                                after: None,
+                                limit: 20,
+                            },
+                        })
+                        .await;
+                });
             }
 
             AppMessage::Tick => {}
@@ -147,6 +215,10 @@ fn view(app: &App) -> Element<'_, AppEvent> {
     if let Some(channels) = app.guilds.show_opened_guild_channels(&app.context) {
         content = content.push(channels);
         content = content.push(app.guilds.channel_resize_divider());
+    }
+
+    if let Some(body) = app.guilds.show_body(&app.context) {
+        content = content.push(body);
     }
 
     container(content)

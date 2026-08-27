@@ -19,8 +19,10 @@ use thread::Thread;
 use voice_channel::VoiceChannel;
 
 use super::{Unknown, nz};
-use crate::{Context, app_event::AppEvent};
-use discord_client_structs::structs::channel::Channel as GatewayChannel;
+use crate::{Context, app_event::AppEvent, components::Message};
+use discord_client_structs::structs::{
+    channel::Channel as GatewayChannel, message::query::MessageQuery,
+};
 use iced::{Color, Element, widget::text};
 
 #[repr(u8)]
@@ -81,6 +83,22 @@ impl GuildChannel {
 
     pub fn set_hovered(&mut self, hovered: bool) {
         self.base_mut().hovered = hovered
+    }
+
+    pub fn show_body(&self, context: &Context) -> Option<Element<'_, AppEvent>> {
+        match self {
+            Self::Text(channel) => Some(channel.show_body(context)),
+            _ => None,
+        }
+    }
+
+    pub fn load_messages(&mut self, query: MessageQuery, messages: Vec<Message>) {
+        match self {
+            Self::Text(channel) => {
+                channel.load_messages(query, messages);
+            }
+            _ => {}
+        }
     }
 }
 

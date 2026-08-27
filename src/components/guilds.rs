@@ -1,8 +1,8 @@
-use super::{Guild, GuildFolder, resizer::ChannelResizeHandle};
-use crate::{
-    Context, app_event::AppEvent, components::channel::GuildChannel,
-    discord_gateway::user_settings::GuildFolders,
+use super::{
+    Guild, GuildFolder, Member, Message, channel::GuildChannel, resizer::ChannelResizeHandle,
 };
+use crate::{Context, app_event::AppEvent, discord_gateway::user_settings::GuildFolders};
+use discord_client_structs::structs::message::query::MessageQuery;
 use iced::{
     Background, Color, Element, Length, Padding,
     alignment::Horizontal,
@@ -56,9 +56,10 @@ impl Guilds {
         name: String,
         avatar: Option<Handle>,
         channels: HashMap<u64, GuildChannel>,
+        members: HashMap<u64, Member>,
     ) {
         self.guilds
-            .insert(id, Guild::new(id, name, avatar, channels));
+            .insert(id, Guild::new(id, name, avatar, channels, members));
     }
 
     fn guilds_preview<'a>(&'a self, context: &'a Context) -> Scrollable<'a, AppEvent> {
@@ -225,10 +226,23 @@ impl Guilds {
             .channel_hover(channel_id, hovered)
     }
 
-    pub fn select_channel(&mut self, channel_id: u64) -> Option<()> {
-        self.guilds
-            .get_mut(&self.opened_guild?)?
-            .select_channel(channel_id);
+    pub fn select_channel(&mut self, guild_id: u64, channel_id: u64) -> Option<()> {
+        self.guilds.get_mut(&guild_id)?.select_channel(channel_id);
         Some(())
+    }
+
+    pub fn load_messages(
+        &mut self,
+        guild_id: u64,
+        channel_id: u64,
+        query: MessageQuery,
+        messages: Vec<Message>,
+    ) -> Option<()> {
+        let guild = self.guilds.get_mut(&guild_id)?;
+        guild.load_messages(channel_id, query, messages)
+    }
+
+    pub fn show_body(&self, context: &Context) -> Option<Element<'_, AppEvent>> {
+        self.guilds.get(&self.opened_guild?)?.show_body(context)
     }
 }

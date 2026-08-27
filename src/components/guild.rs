@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-
-use super::{Channels, channel::GuildChannel};
+use super::{Channels, Member, channel::GuildChannel};
 use crate::{
     Context,
     app_event::{AppEvent, AppMessage},
-    components::button,
+    components::{Message, button},
 };
+use discord_client_structs::structs::message::query::MessageQuery;
 use iced::{
     Background, Border, Color, Element, Length, alignment,
     border::Radius,
@@ -15,6 +14,7 @@ use iced::{
         text,
     },
 };
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Guild {
@@ -23,6 +23,7 @@ pub struct Guild {
     initials: String,
     avatar: Option<Handle>,
     channels: Channels,
+    members: HashMap<u64, Member>,
 }
 
 impl Guild {
@@ -31,6 +32,7 @@ impl Guild {
         name: String,
         avatar: Option<Handle>,
         channels: HashMap<u64, GuildChannel>,
+        members: HashMap<u64, Member>,
     ) -> Self {
         let initials = get_initials(&name);
 
@@ -40,6 +42,7 @@ impl Guild {
             initials,
             avatar,
             channels: Channels::new(channels),
+            members,
         }
     }
 
@@ -126,6 +129,19 @@ impl Guild {
 
     pub fn select_channel(&mut self, channel_id: u64) {
         self.channels.select_channel(channel_id);
+    }
+
+    pub fn load_messages(
+        &mut self,
+        channel_id: u64,
+        query: MessageQuery,
+        messages: Vec<Message>,
+    ) -> Option<()> {
+        self.channels.load_messages(channel_id, query, messages)
+    }
+
+    pub fn show_body(&self, context: &Context) -> Option<Element<'_, AppEvent>> {
+        self.channels.show_body(context)
     }
 }
 
