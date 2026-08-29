@@ -7,7 +7,10 @@ use anyhow::Result as AnyResult;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use bytes::Bytes;
 use discord_client_gateway::events::structs::ready::ReadyEvent;
-use discord_client_structs::structs::{guild::GatewayGuild, user::User as GatewayUser};
+use discord_client_structs::structs::{
+    guild::GatewayGuild,
+    user::{Member as GatewayMember, User as GatewayUser},
+};
 use futures::{StreamExt, stream};
 use iced::widget::image::Handle;
 use prost::Message;
@@ -34,14 +37,18 @@ pub async fn handle_ready(event: ReadyEvent, sender: &Sender<AppEvent>) {
 
         guilds.push(Guild::new(guild_id, name, avatar));
 
-        let guild_members = guild
-            .members
-            .unwrap_or_default()
-            .into_iter()
-            .map(|member| Member {
-                id: member.user.unwrap().id,
+        let guild_members = stream::iter(guild.members.unwrap_or_default())
+            .map(|member| async {
+                let avatar = fetch_member_avatar(&client, &member, guild_id).await;
+                Member {
+                    id: member.user.unwrap().id,
+                    nick: member.nick,
+                    avatar,
+                }
             })
-            .collect();
+            .buffer_unordered(10)
+            .collect()
+            .await;
 
         members.insert(guild_id, guild_members);
 
@@ -104,11 +111,36 @@ async fn fetch_user_avatar(client: &reqwest::Client, user: &GatewayUser) -> Opti
     .map(|bytes| Handle::from_bytes(Bytes::from(bytes)))
 }
 
+async fn fetch_member_avatar(
+    client: &reqwest::Client,
+    member: &GatewayMember,
+    guild_id: u64,
+) -> Option<Handle> {
+    match member_avatar_url(member, guild_id) {
+        Some(link) => fetch_avatar(client, &link).await.ok(),
+        None => None,
+    }
+    .map(|bytes| Handle::from_bytes(Bytes::from(bytes)))
+}
+
 fn user_avatar_url(user: &GatewayUser) -> Option<String> {
     let hash = user.avatar.as_ref()?;
     Some(format!(
         "https://cdn.discordapp.com/avatars/{}/{hash}.{}?size=64",
         user.id,
+        if hash.starts_with("a_") {
+            "gif"
+        } else {
+            "webp"
+        }
+    ))
+}
+
+fn member_avatar_url(member: &GatewayMember, guild_id: u64) -> Option<String> {
+    let hash = member.avatar.as_ref()?;
+    Some(format!(
+        "https://cdn.discordapp.com/guilds/{guild_id}/users/{}/avatars/{hash}.{}?size=240",
+        member.user.as_ref()?.id,
         if hash.starts_with("a_") {
             "gif"
         } else {

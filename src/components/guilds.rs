@@ -273,7 +273,7 @@ impl Guilds {
         let channel = cache.channels.get(&channel_id)?;
         let messages = cache.messages.get(&channel_id);
 
-        channel.show_body(messages, context)
+        channel.show_body(messages, context, cache)
     }
 
     pub fn selected_channel(&self, guild_id: u64) -> Option<u64> {

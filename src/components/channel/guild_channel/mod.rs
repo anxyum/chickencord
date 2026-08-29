@@ -19,7 +19,11 @@ use thread::Thread;
 use voice_channel::VoiceChannel;
 
 use super::{Unknown, nz};
-use crate::{Context, app_event::AppEvent, components::Messages};
+use crate::{
+    Context,
+    app_event::AppEvent,
+    components::{Cache, Messages},
+};
 use discord_client_structs::structs::channel::Channel as GatewayChannel;
 use iced::{Color, Element, widget::text};
 
@@ -88,9 +92,10 @@ impl GuildChannel {
         &'a self,
         messages: Option<&'a Messages>,
         context: &'a Context,
+        cache: &'a Cache,
     ) -> Option<Element<'a, AppEvent>> {
         match self {
-            Self::Text(channel) => Some(channel.show_body(messages, context)),
+            Self::Text(channel) => Some(channel.show_body(messages, context, cache)),
             _ => None,
         }
     }

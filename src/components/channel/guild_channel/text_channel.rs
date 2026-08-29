@@ -2,7 +2,7 @@ use super::{GatewayChannel, GuildChannelBase, Unknown, guild_base};
 use crate::{
     Context,
     app_event::{AppEvent, AppMessage},
-    components::Messages,
+    components::{Cache, Messages},
 };
 use iced::{
     Background, Border, Element, Length, Padding, Shadow, alignment,
@@ -112,9 +112,10 @@ impl TextChannel {
         &'a self,
         messages: Option<&'a Messages>,
         context: &'a Context,
+        cache: &'a Cache,
     ) -> Element<'a, AppEvent> {
         messages
-            .map(|messages| messages.show(context))
+            .map(|messages| messages.show(context, cache, self.base.guild_id))
             .unwrap_or_else(|| column![].into())
     }
 }

@@ -1,5 +1,5 @@
 use super::Message;
-use crate::{Context, app_event::AppEvent};
+use crate::{Context, app_event::AppEvent, components::Cache};
 use discord_client_structs::structs::message::query::MessageQuery;
 use iced::{Element, widget::column};
 use std::collections::{HashMap, VecDeque};
@@ -161,22 +161,35 @@ impl Messages {
         self.extend(messages, Some(query));
     }
 
-    pub fn show(&self, context: &Context) -> Element<'_, AppEvent> {
-        column(
-            self.message_order
-                .iter()
-                .flat_map(|mc| {
-                    mc.messages
-                        .iter()
-                        .filter_map(|id| self.messages.get(id).map(|m| m.show(context)))
-                })
-                .chain(
-                    self.current_chunk
-                        .iter()
-                        .filter_map(|id| self.messages.get(id).map(|m| m.show(context))),
-                ),
-        )
-        .into()
+    pub fn show<'a>(
+        &'a self,
+        context: &'a Context,
+        cache: &'a Cache,
+        guild_id: u64,
+    ) -> Element<'a, AppEvent> {
+        let mut messages_el = Vec::new();
+
+        let mut previous_message_author_id = 0;
+        for chunk in &self.message_order {
+            for id in &chunk.messages {
+                let message = self.messages.get(&id);
+                if let Some(m) = message {
+                    if previous_message_author_id == m.author_id {
+                        messages_el.push(m.show_reduced(context));
+                    } else {
+                        previous_message_author_id = m.author_id;
+                        messages_el.push(m.show(context, cache, guild_id));
+                    }
+                };
+            }
+        }
+        for id in &self.current_chunk {
+            self.messages
+                .get(id)
+                .map(|m| m.show(context, cache, guild_id));
+        }
+
+        column(messages_el).into()
     }
 }
 

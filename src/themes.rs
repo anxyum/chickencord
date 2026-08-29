@@ -6,6 +6,7 @@ use iced::Color;
 pub struct AppTheme {
     pub guilds: GuildsTheme,
     pub channels: ChannelsTheme,
+    pub messages: MessagesTheme,
 
     pub border_size: f32,
     pub border_color: Color,
@@ -16,6 +17,7 @@ impl Default for AppTheme {
         Self {
             guilds: Default::default(),
             channels: Default::default(),
+            messages: MessagesTheme::default(),
 
             border_size: 1.0,
             border_color: Color::from_rgb8(35, 35, 35),
@@ -192,4 +194,68 @@ pub struct StateColors {
     pub inactive: Color,
     pub hover: Color,
     pub active: Color,
+}
+
+#[derive(Debug)]
+pub struct MessagesTheme {
+    pub message: MessageTheme,
+
+    pub background_color: Color,
+    pub message_gap: f32, // the gap between groups of messages from different users
+}
+
+impl Default for MessagesTheme {
+    fn default() -> Self {
+        Self {
+            message: MessageTheme::default(),
+            background_color: Color::BLACK,
+            message_gap: 16.0,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct MessageTheme {
+    pub text_color: Color,
+    pub time_color: Color,
+    pub default_user_name_color: Color,
+
+    pub avatar_padding_left: f32,
+    pub total_padding_left: f32,
+    pub padding_right: f32,
+    pub padding_y: f32,
+
+    pub avatar_spacing: f32,
+    pub avatar_size: f32,
+
+    pub text_size: f32,
+    pub time_size: f32,
+    pub time_spacing: f32,
+}
+
+impl Default for MessageTheme {
+    fn default() -> Self {
+        let avatar_size = 40.0;
+        let avatar_padding_left = 16.0;
+        let avatar_spacing = 16.0;
+        let total_padding_left = avatar_padding_left + avatar_size + avatar_spacing;
+
+        Self {
+            text_color: Color::WHITE,
+            time_color: Color::from_rgba8(255, 255, 255, 0.5),
+            default_user_name_color: Color::WHITE,
+
+            avatar_padding_left,
+            total_padding_left,
+            padding_right: 24.0,
+            padding_y: 2.0,
+
+            avatar_spacing,
+            avatar_size,
+
+            text_size: 16.0,
+            time_size: 12.0,
+            time_spacing: 8.0,
+        }
+    }
 }
