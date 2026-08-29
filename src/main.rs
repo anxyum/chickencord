@@ -1,26 +1,21 @@
 mod app_event;
 mod components;
-mod discord_gateway;
-mod discord_rest;
 mod icons;
+mod network;
 mod themes;
 
 use app_event::{AppEvent, AppMessage, NetworkEvent};
-use bytes::Bytes;
-use components::{Cache, Channel, Guilds};
+use components::{Cache, Guilds};
 use discord_client_structs::structs::message::query::MessageQuery;
-use discord_gateway::PreloadedUserSettings;
-use discord_rest::{RestChannels, RestResponse};
 use iced::{
     Color, Element, Font, Length, Subscription, Task,
     time::{self, Instant},
-    widget::{container, image::Handle, row},
+    widget::{container, row},
 };
 use icons::Icons;
+use network::{NetworkChannels, PreloadedUserSettings, Request};
 use std::time::Duration;
 use themes::AppTheme;
-
-use crate::discord_rest::RestRequest;
 
 pub(crate) const GG_SANS_REGULAR: Font = Font::with_name("gg sans Regular");
 
@@ -34,12 +29,10 @@ fn main() -> iced::Result {
 }
 
 fn subscription(app: &App) -> Subscription<AppEvent> {
-    let mut subscriptions = vec![
-        Subscription::run(discord_gateway::worker),
-        Subscription::run_with(app.context.rest.response_receiver.clone(), |handle| {
-            discord_rest::worker(handle.0.clone())
-        }),
-    ];
+    let mut subscriptions = vec![Subscription::run_with(
+        app.context.network.event_receiver.clone(),
+        |handle| network::worker(handle.clone()),
+    )];
 
     if app.guilds.is_animating() {
         subscriptions.push(
@@ -54,16 +47,12 @@ fn subscription(app: &App) -> Subscription<AppEvent> {
 pub struct Context {
     pub theme: AppTheme,
     pub icons: Icons,
-    pub rest: RestChannels,
+    pub network: NetworkChannels,
 }
 
 impl Default for Context {
     fn default() -> Self {
-        Self {
-            theme: AppTheme::default(),
-            icons: Icons::default(),
-            rest: discord_rest::start(),
-        }
+        Self::new(AppTheme::default(), Icons::default())
     }
 }
 
@@ -72,7 +61,7 @@ impl Context {
         Self {
             theme,
             icons,
-            rest: discord_rest::start(),
+            network: network::start(),
         }
     }
 }
@@ -111,23 +100,25 @@ fn load_channel(app: &mut App, guild_id: u64, channel_id: u64) {
         .is_some_and(|messages| messages.is_loaded());
 
     if app.cache.channels.contains_key(&channel_id) && !loaded {
-        let request_sender = app.context.rest.request_sender.clone();
-
-        tokio::spawn(async move {
-            _ = request_sender
-                .send(RestRequest::FetchMessages {
-                    channel_id,
-                    guild_id: Some(guild_id),
-                    query: MessageQuery {
-                        around: None,
-                        before: None,
-                        after: None,
-                        limit: 20,
-                    },
-                })
-                .await;
+        let _ = app.context.network.request_sender.send(Request::FetchMessages {
+            channel_id,
+            guild_id: Some(guild_id),
+            query: MessageQuery {
+                around: None,
+                before: None,
+                after: None,
+                limit: 20,
+            },
         });
     }
+}
+
+fn subscribe_guild(app: &mut App, guild_id: u64) {
+    let _ = app
+        .context
+        .network
+        .request_sender
+        .send(Request::SubscribeGuild { guild_id });
 }
 
 fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
@@ -180,10 +171,8 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
                     messages.new_message(message);
                 }
             }
-        },
 
-        AppEvent::Rest(response) => match response {
-            RestResponse::Messages {
+            NetworkEvent::Messages {
                 channel_id,
                 query,
                 messages,
@@ -205,6 +194,8 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
 
             AppMessage::OpenGuild(id) => {
                 app.guilds.open_guild(id);
+
+                subscribe_guild(app, id);
 
                 load_channel(app, id, app.guilds.selected_channel(id).unwrap());
             }

@@ -9,14 +9,12 @@ use bytes::Bytes;
 use discord_client_gateway::events::structs::ready::ReadyEvent;
 use discord_client_structs::structs::{guild::GatewayGuild, user::User as GatewayUser};
 use futures::{StreamExt, stream};
-use iced::{
-    futures::{SinkExt, channel::mpsc::Sender},
-    widget::image::Handle,
-};
+use iced::widget::image::Handle;
 use prost::Message;
 use std::collections::HashMap;
+use tokio::sync::broadcast::Sender;
 
-pub async fn handle_ready(event: ReadyEvent, sender: &mut Sender<AppEvent>) {
+pub async fn handle_ready(event: ReadyEvent, sender: &Sender<AppEvent>) {
     let client = reqwest::Client::new();
 
     let mut guilds = Vec::new();
@@ -81,16 +79,13 @@ pub async fn handle_ready(event: ReadyEvent, sender: &mut Sender<AppEvent>) {
         .and_then(|proto| decode_settings(&proto).ok())
         .unwrap_or_default();
 
-    sender
-        .send(AppEvent::Network(NetworkEvent::Ready {
-            guilds,
-            users,
-            members,
-            channels,
-            user_settings,
-        }))
-        .await
-        .unwrap();
+    let _ = sender.send(AppEvent::Network(NetworkEvent::Ready {
+        guilds,
+        users,
+        members,
+        channels,
+        user_settings,
+    }));
 }
 
 async fn fetch_guild_avatar(client: &reqwest::Client, guild: &GatewayGuild) -> Option<Handle> {

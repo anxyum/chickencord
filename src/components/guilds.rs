@@ -2,7 +2,7 @@ use super::{
     Cache, Channels, Guild, GuildFolder, Member, Message, Messages, User, channel::GuildChannel,
     resizer::ChannelResizeHandle,
 };
-use crate::{Context, app_event::AppEvent, discord_gateway::user_settings::GuildFolders};
+use crate::{Context, app_event::AppEvent, network::user_settings::GuildFolders};
 use discord_client_structs::structs::{
     message::query::MessageQuery, user::Member as GatewayMember,
 };

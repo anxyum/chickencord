@@ -1,15 +1,11 @@
 use crate::components::{Guild, Member, Message, User, channel::GuildChannel};
-use crate::discord_gateway::PreloadedUserSettings;
-use crate::discord_rest::RestResponse;
-use discord_client_structs::structs::{
-    channel::Channel as GatewayChannel, user::Member as GatewayMember,
-};
+use crate::network::PreloadedUserSettings;
+use discord_client_structs::structs::message::{Message as RawMessage, query::MessageQuery};
 use std::collections::HashMap;
 
 #[derive(Clone)]
 pub enum AppEvent {
     Network(NetworkEvent),
-    Rest(RestResponse),
     Message(AppMessage),
 }
 
@@ -31,6 +27,12 @@ pub enum NetworkEvent {
     MessageCreate {
         message: Message,
         channel_id: u64,
+    },
+    Messages {
+        channel_id: u64,
+        guild_id: Option<u64>,
+        query: MessageQuery,
+        messages: Vec<RawMessage>,
     },
 }
 
