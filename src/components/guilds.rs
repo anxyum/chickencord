@@ -266,6 +266,7 @@ impl Guilds {
         &'a self,
         cache: &'a Cache,
         context: &'a Context,
+        hovered_message: Option<u64>,
     ) -> Option<Element<'a, AppEvent>> {
         let guild_id = self.opened_guild?;
         let channels = self.channels.get(&guild_id)?;
@@ -273,7 +274,7 @@ impl Guilds {
         let channel = cache.channels.get(&channel_id)?;
         let messages = cache.messages.get(&channel_id);
 
-        channel.show_body(messages, context, cache)
+        channel.show_body(messages, context, cache, hovered_message)
     }
 
     pub fn selected_channel(&self, guild_id: u64) -> Option<u64> {

@@ -71,6 +71,7 @@ struct App {
     guilds: Guilds,
     cache: Cache,
     context: Context,
+    hovered_message: Option<u64>,
 }
 
 impl App {
@@ -81,6 +82,7 @@ impl App {
             guilds: Guilds::new(&context),
             cache: Cache::default(),
             context,
+            hovered_message: None,
         }
     }
 
@@ -100,16 +102,20 @@ fn load_channel(app: &mut App, guild_id: u64, channel_id: u64) {
         .is_some_and(|messages| messages.is_loaded());
 
     if app.cache.channels.contains_key(&channel_id) && !loaded {
-        let _ = app.context.network.request_sender.send(Request::FetchMessages {
-            channel_id,
-            guild_id: Some(guild_id),
-            query: MessageQuery {
-                around: None,
-                before: None,
-                after: None,
-                limit: 20,
-            },
-        });
+        let _ = app
+            .context
+            .network
+            .request_sender
+            .send(Request::FetchMessages {
+                channel_id,
+                guild_id: Some(guild_id),
+                query: MessageQuery {
+                    around: None,
+                    before: None,
+                    after: None,
+                    limit: 20,
+                },
+            });
     }
 }
 
@@ -212,6 +218,21 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
                 app.guilds.channel_hover(&mut app.cache, id, hovered);
             }
 
+            AppMessage::MessageHover(id, hovered) => match app.hovered_message {
+                Some(previous_id) => {
+                    if previous_id == id && !hovered {
+                        app.hovered_message = None;
+                    } else if hovered {
+                        app.hovered_message = Some(id);
+                    }
+                }
+                None => {
+                    if hovered {
+                        app.hovered_message = Some(id);
+                    }
+                }
+            },
+
             AppMessage::SelectChannel {
                 guild_id,
                 channel_id,
@@ -239,7 +260,10 @@ fn view(app: &App) -> Element<'_, AppEvent> {
         content = content.push(app.guilds.channel_resize_divider());
     }
 
-    if let Some(body) = app.guilds.show_body(&app.cache, &app.context) {
+    if let Some(body) = app
+        .guilds
+        .show_body(&app.cache, &app.context, app.hovered_message)
+    {
         content = content.push(body);
     }
 

@@ -219,6 +219,7 @@ pub struct MessageTheme {
     pub text_color: Color,
     pub time_color: Color,
     pub default_user_name_color: Color,
+    pub hover_background_color: Color,
 
     pub avatar_padding_left: f32,
     pub total_padding_left: f32,
@@ -231,6 +232,8 @@ pub struct MessageTheme {
     pub text_size: f32,
     pub time_size: f32,
     pub time_spacing: f32,
+
+    pub corner_radius: f32,
 }
 
 impl Default for MessageTheme {
@@ -244,6 +247,7 @@ impl Default for MessageTheme {
             text_color: Color::WHITE,
             time_color: Color::from_rgba8(255, 255, 255, 0.5),
             default_user_name_color: Color::WHITE,
+            hover_background_color: Color::from_rgba8(128, 128, 128, 0.125),
 
             avatar_padding_left,
             total_padding_left,
@@ -256,6 +260,8 @@ impl Default for MessageTheme {
             text_size: 16.0,
             time_size: 12.0,
             time_spacing: 8.0,
+
+            corner_radius: 4.0,
         }
     }
 }

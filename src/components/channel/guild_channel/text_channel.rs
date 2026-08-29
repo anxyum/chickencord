@@ -113,9 +113,10 @@ impl TextChannel {
         messages: Option<&'a Messages>,
         context: &'a Context,
         cache: &'a Cache,
+        hovered_message: Option<u64>,
     ) -> Element<'a, AppEvent> {
         messages
-            .map(|messages| messages.show(context, cache, self.base.guild_id))
+            .map(|messages| messages.show(context, cache, self.base.guild_id, hovered_message))
             .unwrap_or_else(|| column![].into())
     }
 }

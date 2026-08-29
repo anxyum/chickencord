@@ -37,14 +37,13 @@ pub fn start(mut request_rx: Receiver<Request>, event_sender: EventSender) {
                             .await
                         {
                             Ok(messages) => {
-                                let _ = event_sender.send(AppEvent::Network(
-                                    NetworkEvent::Messages {
+                                let _ =
+                                    event_sender.send(AppEvent::Network(NetworkEvent::Messages {
                                         channel_id,
                                         guild_id,
                                         query,
                                         messages,
-                                    },
-                                ));
+                                    }));
                             }
                             Err(e) => {
                                 eprintln!("failed to fetch messages: {e:?}");

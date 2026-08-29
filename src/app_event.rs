@@ -43,6 +43,7 @@ pub enum AppMessage {
     ChannelPanelResized(f32),
     ToggleCategory(u64),
     ChannelHover(u64, bool),
+    MessageHover(u64, bool),
     SelectChannel { guild_id: u64, channel_id: u64 },
     Tick,
 }

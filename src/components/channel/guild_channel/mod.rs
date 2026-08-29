@@ -93,9 +93,12 @@ impl GuildChannel {
         messages: Option<&'a Messages>,
         context: &'a Context,
         cache: &'a Cache,
+        hovered_message: Option<u64>,
     ) -> Option<Element<'a, AppEvent>> {
         match self {
-            Self::Text(channel) => Some(channel.show_body(messages, context, cache)),
+            Self::Text(channel) => {
+                Some(channel.show_body(messages, context, cache, hovered_message))
+            }
             _ => None,
         }
     }

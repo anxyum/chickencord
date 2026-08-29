@@ -1,10 +1,10 @@
 use crate::{Context, app_event::AppEvent, components::Cache};
 use discord_client_structs::structs::message::Message as GatewayMessage;
 use iced::{
-    Element, Padding, alignment,
-    widget::{Image, Text, column, image::Handle, row, text},
+    Background, Border, Element, Length, Padding, alignment,
+    border::Radius,
+    widget::{Image, Text, column, container, image::Handle, row, text},
 };
-
 const DISCORD_EPOCH_MS: u64 = 1_424_007_040_000;
 static EMPTY_IMAGE: std::sync::LazyLock<Handle> =
     std::sync::LazyLock::new(|| Handle::from_rgba(1, 1, vec![0, 0, 0, 0]));
@@ -77,6 +77,7 @@ impl Message {
         context: &'a Context,
         cache: &'a Cache,
         guild_id: u64,
+        hovered: bool,
     ) -> Element<'a, AppEvent> {
         let author_member = cache
             .members
@@ -91,45 +92,87 @@ impl Message {
             .unwrap_or_default();
 
         let messages_theme = &context.theme.messages;
-        row([
-            author_avatar.into(),
-            column([
-                row([
-                    text(display_name)
-                        .color(messages_theme.message.default_user_name_color)
-                        .into(),
-                    self.full_datetime(context).into(),
+        container(
+            row([
+                author_avatar.into(),
+                column([
+                    row([
+                        text(display_name)
+                            .color(messages_theme.message.default_user_name_color)
+                            .into(),
+                        self.full_datetime(context).into(),
+                    ])
+                    .spacing(messages_theme.message.time_spacing)
+                    .align_y(alignment::Vertical::Center)
+                    .into(),
+                    self.text_content(context).into(),
                 ])
-                .spacing(messages_theme.message.time_spacing)
-                .align_y(alignment::Vertical::Center)
                 .into(),
-                self.text_content(context).into(),
             ])
-            .into(),
-        ])
-        .padding(
-            Padding::new(messages_theme.message.padding_y)
-                .left(messages_theme.message.avatar_padding_left),
+            .padding(
+                Padding::new(messages_theme.message.padding_y)
+                    .left(messages_theme.message.avatar_padding_left),
+            )
+            .spacing(messages_theme.message.avatar_spacing),
         )
-        .spacing(messages_theme.message.avatar_spacing)
+        .width(Length::Fill)
+        .style(move |_| container::Style {
+            background: if hovered {
+                Some(Background::Color(
+                    messages_theme.message.hover_background_color,
+                ))
+            } else {
+                None
+            },
+            border: Border::default()
+                .rounded(Radius::new(0.0).right(messages_theme.message.corner_radius)),
+            ..Default::default()
+        })
         .into()
     }
 
-    pub fn show_reduced(&self, context: &Context) -> Element<'_, AppEvent> {
+    pub fn show_reduced<'a>(
+        &'a self,
+        context: &'a Context,
+        hovered: bool,
+    ) -> Element<'a, AppEvent> {
         let messages_theme = &context.theme.messages;
-        row([
-            self.small_datetime(context)
-                .width(messages_theme.message.avatar_size)
-                .align_x(alignment::Horizontal::Right)
-                .into(),
-            self.text_content(context).into(),
-        ])
-        .padding(
-            Padding::new(messages_theme.message.padding_y)
-                .left(messages_theme.message.avatar_padding_left),
-        )
-        .spacing(messages_theme.message.avatar_spacing)
-        .into()
+
+        let row = if hovered {
+            row([
+                self.small_datetime(context)
+                    .width(messages_theme.message.avatar_size)
+                    .align_x(alignment::Horizontal::Right)
+                    .into(),
+                self.text_content(context).into(),
+            ])
+            .spacing(messages_theme.message.avatar_spacing)
+            .padding(
+                Padding::new(messages_theme.message.padding_y)
+                    .left(messages_theme.message.avatar_padding_left),
+            )
+        } else {
+            row([self.text_content(context).into()]).padding(
+                Padding::new(messages_theme.message.padding_y)
+                    .left(messages_theme.message.total_padding_left),
+            )
+        };
+
+        container(row)
+            .width(Length::Fill)
+            .style(move |_| container::Style {
+                background: if hovered {
+                    Some(Background::Color(
+                        messages_theme.message.hover_background_color,
+                    ))
+                } else {
+                    None
+                },
+                border: Border::default()
+                    .rounded(Radius::new(0.0).right(messages_theme.message.corner_radius)),
+                ..Default::default()
+            })
+            .into()
     }
 }
 

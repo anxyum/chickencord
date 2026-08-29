@@ -1,7 +1,14 @@
 use super::Message;
-use crate::{Context, app_event::AppEvent, components::Cache};
+use crate::{
+    Context,
+    app_event::{AppEvent, AppMessage},
+    components::Cache,
+};
 use discord_client_structs::structs::message::query::MessageQuery;
-use iced::{Element, widget::column};
+use iced::{
+    Element,
+    widget::{column, mouse_area, scrollable},
+};
 use std::collections::{HashMap, VecDeque};
 
 #[derive(Debug)]
@@ -166,30 +173,51 @@ impl Messages {
         context: &'a Context,
         cache: &'a Cache,
         guild_id: u64,
+        hovered_message: Option<u64>,
     ) -> Element<'a, AppEvent> {
         let mut messages_el = Vec::new();
+        let mut group: Vec<Element<'a, AppEvent>> = Vec::new();
 
-        let mut previous_message_author_id = 0;
-        for chunk in &self.message_order {
-            for id in &chunk.messages {
-                let message = self.messages.get(&id);
-                if let Some(m) = message {
-                    if previous_message_author_id == m.author_id {
-                        messages_el.push(m.show_reduced(context));
-                    } else {
-                        previous_message_author_id = m.author_id;
-                        messages_el.push(m.show(context, cache, guild_id));
-                    }
-                };
+        let flush_group = |group: &mut Vec<Element<'a, AppEvent>>,
+                           messages_el: &mut Vec<Element<'a, AppEvent>>| {
+            if !group.is_empty() {
+                messages_el.push(column(group.drain(..)).into());
             }
-        }
-        for id in &self.current_chunk {
-            self.messages
-                .get(id)
-                .map(|m| m.show(context, cache, guild_id));
-        }
+        };
 
-        column(messages_el).into()
+        let ids = self
+            .message_order
+            .iter()
+            .flat_map(|chunk| chunk.messages.iter())
+            .chain(self.current_chunk.iter());
+
+        let mut previous_author = 0;
+        for id in ids {
+            let Some(m) = self.messages.get(&id) else {
+                continue;
+            };
+            let new_group = previous_author != m.author_id;
+            previous_author = m.author_id;
+
+            if new_group && !group.is_empty() {
+                flush_group(&mut group, &mut messages_el);
+            }
+            let hovered = hovered_message == Some(m.id);
+            let message = if new_group {
+                m.show(context, cache, guild_id, hovered)
+            } else {
+                m.show_reduced(context, hovered)
+            };
+            group.push(
+                mouse_area(message)
+                    .on_enter(AppEvent::Message(AppMessage::MessageHover(m.id, true)))
+                    .on_exit(AppEvent::Message(AppMessage::MessageHover(m.id, false)))
+                    .into(),
+            );
+        }
+        flush_group(&mut group, &mut messages_el);
+
+        scrollable(column(messages_el).spacing(context.theme.messages.message_gap)).into()
     }
 }
 

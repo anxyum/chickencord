@@ -38,7 +38,9 @@ pub fn start(mut request_rx: Receiver<Request>, event_sender: EventSender) {
             match action {
                 Action::Event(event) => match event {
                     Event::Ready(event) => handle_ready(event, &event_sender).await,
-                    Event::MessageCreate(event) => handle_message_create(event, &event_sender).await,
+                    Event::MessageCreate(event) => {
+                        handle_message_create(event, &event_sender).await
+                    }
                     _ => {}
                 },
                 Action::SubscribeGuild { guild_id } => {

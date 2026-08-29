@@ -16,7 +16,9 @@ pub type RequestSender = broadcast::Sender<Request>;
 
 #[derive(Debug, Clone)]
 pub enum Request {
-    SubscribeGuild { guild_id: u64 },
+    SubscribeGuild {
+        guild_id: u64,
+    },
     FetchMessages {
         channel_id: u64,
         guild_id: Option<u64>,
