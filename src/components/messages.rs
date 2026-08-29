@@ -7,7 +7,8 @@ use crate::{
 use discord_client_structs::structs::message::query::MessageQuery;
 use iced::{
     Element,
-    widget::{column, mouse_area, scrollable},
+    border::Radius,
+    widget::{Id, column, mouse_area, scrollable},
 };
 use std::collections::{HashMap, VecDeque};
 
@@ -59,6 +60,12 @@ pub struct Messages {
     message_order: VecDeque<MessagesChunk>,
     current_chunk: Vec<u64>,
     loaded: bool,
+    exhausted: bool,
+    loading: bool,
+    anchor_bottom: bool,
+    restoring: bool,
+    restore_offset: f32,
+    restore_height: f32,
 }
 
 impl Messages {
@@ -68,7 +75,33 @@ impl Messages {
             message_order: VecDeque::new(),
             current_chunk: Vec::new(),
             loaded: false,
+            exhausted: false,
+            loading: false,
+            anchor_bottom: true,
+            restoring: false,
+            restore_offset: 0.0,
+            restore_height: 0.0,
         }
+    }
+
+    pub fn set_anchor_bottom(&mut self, anchor_bottom: bool) -> bool {
+        if self.anchor_bottom == anchor_bottom {
+            return false;
+        }
+        self.anchor_bottom = anchor_bottom;
+        true
+    }
+
+    pub fn start_restore(&mut self, anchor_bottom: bool, offset: f32, height: f32) {
+        self.restoring = !anchor_bottom;
+        if !anchor_bottom {
+            self.restore_offset = offset;
+            self.restore_height = height;
+        }
+    }
+
+    pub fn clear_restore(&mut self) {
+        self.restoring = false;
     }
 
     pub fn is_loaded(&self) -> bool {
@@ -83,7 +116,15 @@ impl Messages {
         Some(self.message_order.get(self.message_order.len() - 1)?.last)
     }
 
-    pub fn extend(&mut self, messages: Vec<Message>, _query: Option<MessageQuery>) {
+    pub fn extend(&mut self, messages: Vec<Message>, query: Option<MessageQuery>) {
+        if let Some(query) = &query
+            && query.before.is_some()
+            && (messages.len() as u8) < query.limit
+        {
+            self.exhausted = true;
+            self.restoring = false;
+        }
+
         if messages.is_empty() {
             return;
         }
@@ -173,6 +214,7 @@ impl Messages {
         context: &'a Context,
         cache: &'a Cache,
         guild_id: u64,
+        channel_id: u64,
         hovered_message: Option<u64>,
     ) -> Element<'a, AppEvent> {
         let mut messages_el = Vec::new();
@@ -217,7 +259,58 @@ impl Messages {
         }
         flush_group(&mut group, &mut messages_el);
 
-        scrollable(column(messages_el).spacing(context.theme.messages.message_gap)).into()
+        let anchor_bottom = self.anchor_bottom;
+
+        scrollable(column(messages_el).spacing(context.theme.messages.message_gap))
+            .style(|theme, status| {
+                let mut style = scrollable::default(theme, status);
+                let border_width = (12.0 - context.theme.messages.scroller_width) / 2.0;
+
+                style.vertical_rail.background = None;
+                style.vertical_rail.scroller.background =
+                    context.theme.messages.scroller_color.into();
+                style.vertical_rail.scroller.border.width = border_width;
+                style.vertical_rail.scroller.border.radius =
+                    Radius::new(border_width + context.theme.messages.scroller_width / 2.0);
+
+                style
+            })
+            .id(Id::new("chickencord-messages-scroll"))
+            .anchor_y(if anchor_bottom {
+                scrollable::Anchor::End
+            } else {
+                scrollable::Anchor::Start
+            })
+            .on_scroll(move |viewport| {
+                let abs = viewport.absolute_offset().y;
+                let rev = viewport.absolute_offset_reversed().y;
+                let distance_to_top = if anchor_bottom { rev } else { abs };
+                let distance_to_bottom = if anchor_bottom { abs } else { rev };
+                let height = viewport.content_bounds().height;
+
+                if self.restoring && height - self.restore_height > 1.0 {
+                    AppEvent::Message(AppMessage::RestoreScroll {
+                        channel_id,
+                        offset: self.restore_offset + (height - self.restore_height),
+                    })
+                } else if distance_to_top < 32.0 && !self.exhausted && !self.restoring {
+                    AppEvent::Message(AppMessage::LoadBefore {
+                        guild_id,
+                        channel_id,
+                        before: self.first().unwrap_or(u64::MAX),
+                        anchor_bottom,
+                        offset: abs,
+                        height,
+                    })
+                } else {
+                    AppEvent::Message(AppMessage::Scroll {
+                        channel_id,
+                        anchor_bottom: distance_to_bottom < 2.0,
+                        offset: rev,
+                    })
+                }
+            })
+            .into()
     }
 }
 

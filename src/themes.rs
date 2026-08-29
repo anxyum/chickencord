@@ -201,7 +201,10 @@ pub struct MessagesTheme {
     pub message: MessageTheme,
 
     pub background_color: Color,
-    pub message_gap: f32, // the gap between groups of messages from different users
+    pub message_gap: f32,
+
+    pub scroller_color: Color,
+    pub scroller_width: f32,
 }
 
 impl Default for MessagesTheme {
@@ -210,6 +213,9 @@ impl Default for MessagesTheme {
             message: MessageTheme::default(),
             background_color: Color::BLACK,
             message_gap: 16.0,
+
+            scroller_color: Color::from_rgb8(128, 128, 128),
+            scroller_width: 8.0,
         }
     }
 }

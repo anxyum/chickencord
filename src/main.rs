@@ -14,7 +14,7 @@ use iced::{
 };
 use icons::Icons;
 use network::{NetworkChannels, PreloadedUserSettings, Request};
-use std::time::Duration;
+use std::{collections::HashSet, time::Duration};
 use themes::AppTheme;
 
 pub(crate) const GG_SANS_REGULAR: Font = Font::with_name("gg sans Regular");
@@ -72,6 +72,7 @@ struct App {
     cache: Cache,
     context: Context,
     hovered_message: Option<u64>,
+    loading_messages: HashSet<u64>,
 }
 
 impl App {
@@ -83,6 +84,7 @@ impl App {
             cache: Cache::default(),
             context,
             hovered_message: None,
+            loading_messages: HashSet::new(),
         }
     }
 
@@ -92,39 +94,42 @@ impl App {
             self.guilds.reorganize(guild_folders, &self.context)
         }
     }
-}
 
-fn load_channel(app: &mut App, guild_id: u64, channel_id: u64) {
-    let loaded = app
-        .cache
-        .messages
-        .get(&channel_id)
-        .is_some_and(|messages| messages.is_loaded());
+    fn load_channel(&mut self, guild_id: u64, channel_id: u64) {
+        if !self.loading_messages.insert(channel_id) {
+            return;
+        }
+        let loaded = self
+            .cache
+            .messages
+            .get(&channel_id)
+            .is_some_and(|messages| messages.is_loaded());
 
-    if app.cache.channels.contains_key(&channel_id) && !loaded {
-        let _ = app
+        if self.cache.channels.contains_key(&channel_id) && !loaded {
+            let _ = self
+                .context
+                .network
+                .request_sender
+                .send(Request::FetchMessages {
+                    channel_id,
+                    guild_id: Some(guild_id),
+                    query: MessageQuery {
+                        around: None,
+                        before: None,
+                        after: None,
+                        limit: 20,
+                    },
+                });
+        }
+    }
+
+    fn subscribe_guild(&mut self, guild_id: u64) {
+        let _ = self
             .context
             .network
             .request_sender
-            .send(Request::FetchMessages {
-                channel_id,
-                guild_id: Some(guild_id),
-                query: MessageQuery {
-                    around: None,
-                    before: None,
-                    after: None,
-                    limit: 20,
-                },
-            });
+            .send(Request::SubscribeGuild { guild_id });
     }
-}
-
-fn subscribe_guild(app: &mut App, guild_id: u64) {
-    let _ = app
-        .context
-        .network
-        .request_sender
-        .send(Request::SubscribeGuild { guild_id });
 }
 
 fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
@@ -184,6 +189,7 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
                 messages,
                 ..
             } => {
+                app.loading_messages.remove(&channel_id);
                 let messages = messages
                     .into_iter()
                     .filter_map(|m| m.try_into().ok())
@@ -201,9 +207,9 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
             AppMessage::OpenGuild(id) => {
                 app.guilds.open_guild(id);
 
-                subscribe_guild(app, id);
+                app.subscribe_guild(id);
 
-                load_channel(app, id, app.guilds.selected_channel(id).unwrap());
+                app.load_channel(id, app.guilds.selected_channel(id).unwrap());
             }
 
             AppMessage::ChannelPanelResized(width) => {
@@ -239,7 +245,68 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
             } => {
                 app.guilds.select_channel(guild_id, channel_id);
 
-                load_channel(app, guild_id, channel_id);
+                app.load_channel(guild_id, channel_id);
+            }
+
+            AppMessage::LoadBefore {
+                guild_id,
+                channel_id,
+                before,
+                anchor_bottom,
+                offset,
+                height,
+            } => {
+                if app.loading_messages.insert(channel_id) {
+                    if let Some(messages) = app.cache.messages.get_mut(&channel_id) {
+                        messages.start_restore(anchor_bottom, offset, height);
+                    }
+
+                    app.context
+                        .network
+                        .request_sender
+                        .send(Request::FetchMessages {
+                            channel_id,
+                            guild_id: Some(guild_id),
+                            query: MessageQuery {
+                                around: None,
+                                before: Some(before),
+                                after: None,
+                                limit: 20,
+                            },
+                        })
+                        .unwrap();
+                }
+            }
+
+            AppMessage::RestoreScroll { channel_id, offset } => {
+                if let Some(messages) = app.cache.messages.get_mut(&channel_id) {
+                    messages.clear_restore();
+                }
+                return iced::widget::operation::scroll_to(
+                    iced::widget::Id::new("chickencord-messages-scroll"),
+                    iced::widget::operation::AbsoluteOffset {
+                        x: None,
+                        y: Some(offset),
+                    },
+                );
+            }
+
+            AppMessage::Scroll {
+                channel_id,
+                anchor_bottom,
+                offset,
+            } => {
+                if let Some(messages) = app.cache.messages.get_mut(&channel_id)
+                    && messages.set_anchor_bottom(anchor_bottom)
+                {
+                    return iced::widget::operation::scroll_to(
+                        iced::widget::Id::new("chickencord-messages-scroll"),
+                        iced::widget::operation::AbsoluteOffset {
+                            x: None,
+                            y: Some(offset),
+                        },
+                    );
+                }
             }
 
             AppMessage::Tick => {}

@@ -44,6 +44,26 @@ pub enum AppMessage {
     ToggleCategory(u64),
     ChannelHover(u64, bool),
     MessageHover(u64, bool),
-    SelectChannel { guild_id: u64, channel_id: u64 },
+    SelectChannel {
+        guild_id: u64,
+        channel_id: u64,
+    },
+    LoadBefore {
+        guild_id: u64,
+        channel_id: u64,
+        before: u64,
+        anchor_bottom: bool,
+        offset: f32,
+        height: f32,
+    },
+    RestoreScroll {
+        channel_id: u64,
+        offset: f32,
+    },
+    Scroll {
+        channel_id: u64,
+        anchor_bottom: bool,
+        offset: f32,
+    },
     Tick,
 }
