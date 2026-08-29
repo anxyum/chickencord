@@ -1,5 +1,13 @@
-use discord_client_structs::structs::user::User as GatewayUser;
+use crate::network::utils::fetch_user_avatar;
 use iced::widget::image::Handle;
+
+#[derive(Debug, Clone)]
+pub struct LazyUser {
+    pub id: u64,
+    pub display_name: Option<String>,
+    pub username: String,
+    pub avatar: String,
+}
 
 #[derive(Debug, Clone)]
 pub struct User {
@@ -24,13 +32,24 @@ impl User {
     }
 }
 
-impl From<GatewayUser> for User {
-    fn from(value: GatewayUser) -> Self {
-        Self {
-            id: value.id,
-            display_name: value.global_name,
-            username: value.username,
-            avatar: Handle::from_rgba(1, 1, vec![0, 0, 0, 0]),
+impl LazyUser {
+    pub async fn load(self) -> User {
+        let Self {
+            id,
+            display_name,
+            username,
+            avatar,
+        } = self;
+
+        let avatar = fetch_user_avatar(&avatar, id)
+            .await
+            .unwrap_or(Handle::from_rgba(1, 1, vec![0, 0, 0, 0]));
+
+        User {
+            id,
+            display_name,
+            username,
+            avatar,
         }
     }
 }

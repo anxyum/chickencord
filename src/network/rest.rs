@@ -51,6 +51,21 @@ pub fn start(mut request_rx: Receiver<Request>, event_sender: EventSender) {
                         }
                     });
                 }
+                Request::LoadMember(guild_id, member) => {
+                    event_sender
+                        .send(AppEvent::Network(NetworkEvent::LoadedMember(
+                            guild_id,
+                            member.load().await,
+                        )))
+                        .ok();
+                }
+                Request::LoadUser(user) => {
+                    event_sender
+                        .send(AppEvent::Network(NetworkEvent::LoadedUser(
+                            user.load().await,
+                        )))
+                        .ok();
+                }
                 Request::SubscribeGuild { .. } => {}
             }
         }

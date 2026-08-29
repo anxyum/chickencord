@@ -1,51 +1,38 @@
-use super::PreloadedUserSettings;
+use super::{
+    PreloadedUserSettings,
+    utils::{fetch_guild_avatar, load_member, load_user},
+};
 use crate::{
     app_event::{AppEvent, NetworkEvent},
-    components::{Channel, Guild, Member, User},
+    components::{Channel, Guild},
 };
-use anyhow::Result as AnyResult;
 use base64::{Engine, engine::general_purpose::STANDARD};
-use bytes::Bytes;
 use discord_client_gateway::events::structs::ready::ReadyEvent;
-use discord_client_structs::structs::{
-    guild::GatewayGuild,
-    user::{Member as GatewayMember, User as GatewayUser},
-};
+use discord_client_structs::structs::guild::GatewayGuild;
 use futures::{StreamExt, stream};
-use iced::widget::image::Handle;
 use prost::Message;
 use std::collections::HashMap;
 use tokio::sync::broadcast::Sender;
 
 pub async fn handle_ready(event: ReadyEvent, sender: &Sender<AppEvent>) {
-    let client = reqwest::Client::new();
-
     let mut guilds = Vec::new();
     let mut members = HashMap::new();
     let mut channels = HashMap::new();
 
-    for guild in event.guilds {
-        let guild_id = guild.id;
+    for guild in event.guilds.into_iter() {
+        let avatar = fetch_guild_avatar(&guild).await;
 
+        let GatewayGuild { id: guild_id, .. } = guild;
         let name = guild
             .name
             .clone()
             .or_else(|| guild.properties.as_ref()?.name.clone())
             .unwrap_or_default();
 
-        let avatar = fetch_guild_avatar(&client, &guild).await;
-
         guilds.push(Guild::new(guild_id, name, avatar));
 
         let guild_members = stream::iter(guild.members.unwrap_or_default())
-            .map(|member| async {
-                let avatar = fetch_member_avatar(&client, &member, guild_id).await;
-                Member {
-                    id: member.user.unwrap().id,
-                    nick: member.nick,
-                    avatar,
-                }
-            })
+            .map(|member| load_member(member, guild_id))
             .buffer_unordered(10)
             .collect()
             .await;
@@ -70,13 +57,7 @@ pub async fn handle_ready(event: ReadyEvent, sender: &Sender<AppEvent>) {
     }
 
     let users = stream::iter(event.users.unwrap_or_default())
-        .map(|user| async {
-            let avatar = fetch_user_avatar(&client, &user)
-                .await
-                .unwrap_or(Handle::from_rgba(1, 1, vec![0, 0, 0, 0]));
-
-            User::new(user.id, user.global_name, user.username, avatar)
-        })
+        .map(|user| load_user(user))
         .buffer_unordered(10)
         .collect()
         .await;
@@ -93,79 +74,6 @@ pub async fn handle_ready(event: ReadyEvent, sender: &Sender<AppEvent>) {
         channels,
         user_settings,
     }));
-}
-
-async fn fetch_guild_avatar(client: &reqwest::Client, guild: &GatewayGuild) -> Option<Handle> {
-    match guild_avatar_url(guild) {
-        Some(link) => fetch_avatar(client, &link).await.ok(),
-        None => None,
-    }
-    .map(|bytes| Handle::from_bytes(Bytes::from(bytes)))
-}
-
-async fn fetch_user_avatar(client: &reqwest::Client, user: &GatewayUser) -> Option<Handle> {
-    match user_avatar_url(user) {
-        Some(link) => fetch_avatar(client, &link).await.ok(),
-        None => None,
-    }
-    .map(|bytes| Handle::from_bytes(Bytes::from(bytes)))
-}
-
-async fn fetch_member_avatar(
-    client: &reqwest::Client,
-    member: &GatewayMember,
-    guild_id: u64,
-) -> Option<Handle> {
-    match member_avatar_url(member, guild_id) {
-        Some(link) => fetch_avatar(client, &link).await.ok(),
-        None => None,
-    }
-    .map(|bytes| Handle::from_bytes(Bytes::from(bytes)))
-}
-
-fn user_avatar_url(user: &GatewayUser) -> Option<String> {
-    let hash = user.avatar.as_ref()?;
-    Some(format!(
-        "https://cdn.discordapp.com/avatars/{}/{hash}.{}?size=64",
-        user.id,
-        if hash.starts_with("a_") {
-            "gif"
-        } else {
-            "webp"
-        }
-    ))
-}
-
-fn member_avatar_url(member: &GatewayMember, guild_id: u64) -> Option<String> {
-    let hash = member.avatar.as_ref()?;
-    Some(format!(
-        "https://cdn.discordapp.com/guilds/{guild_id}/users/{}/avatars/{hash}.{}?size=240",
-        member.user.as_ref()?.id,
-        if hash.starts_with("a_") {
-            "gif"
-        } else {
-            "webp"
-        }
-    ))
-}
-
-fn guild_avatar_url(guild: &GatewayGuild) -> Option<String> {
-    let properties = guild.properties.as_ref()?;
-    let icon_hash = properties.icon.as_ref()?;
-    Some(format!(
-        "https://cdn.discordapp.com/icons/{}/{}.{}",
-        guild.id,
-        icon_hash,
-        if icon_hash.starts_with("a_") {
-            "gif"
-        } else {
-            "png"
-        }
-    ))
-}
-
-async fn fetch_avatar(client: &reqwest::Client, link: &str) -> AnyResult<Vec<u8>> {
-    Ok(client.get(link).send().await?.bytes().await?.to_vec())
 }
 
 fn decode_settings(

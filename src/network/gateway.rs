@@ -30,6 +30,8 @@ pub fn start(mut request_rx: Receiver<Request>, event_sender: EventSender) {
                 request = request_rx.recv() => match request {
                     Ok(Request::SubscribeGuild { guild_id }) => Action::SubscribeGuild { guild_id },
                     Ok(Request::FetchMessages { .. }) => continue,
+                    Ok(Request::LoadUser(_)) => continue,
+                    Ok(Request::LoadMember(_, _)) => continue,
                     Err(RecvError::Lagged(_)) => continue,
                     Err(RecvError::Closed) => return,
                 },

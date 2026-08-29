@@ -1,4 +1,5 @@
 use crate::components::{Guild, Member, Message, User, channel::GuildChannel};
+use crate::components::{LazyMember, LazyUser};
 use crate::network::PreloadedUserSettings;
 use discord_client_structs::structs::message::{Message as RawMessage, query::MessageQuery};
 use std::collections::HashMap;
@@ -27,6 +28,8 @@ pub enum NetworkEvent {
     MessageCreate {
         message: Message,
         channel_id: u64,
+        author_member: Option<(u64, LazyMember)>,
+        author_user: LazyUser,
     },
     Messages {
         channel_id: u64,
@@ -34,6 +37,8 @@ pub enum NetworkEvent {
         query: MessageQuery,
         messages: Vec<RawMessage>,
     },
+    LoadedUser(User),
+    LoadedMember(u64, Member),
 }
 
 #[derive(Clone)]

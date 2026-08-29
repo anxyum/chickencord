@@ -3,10 +3,14 @@ mod handle_message_create;
 mod handle_ready;
 mod rest;
 pub mod user_settings;
+pub mod utils;
 
 pub use user_settings::PreloadedUserSettings;
 
-use crate::app_event::AppEvent;
+use crate::{
+    app_event::AppEvent,
+    components::{LazyMember, LazyUser},
+};
 use discord_client_structs::structs::message::query::MessageQuery;
 use std::sync::Arc;
 use tokio::sync::{Mutex, broadcast, broadcast::error::RecvError};
@@ -24,6 +28,8 @@ pub enum Request {
         guild_id: Option<u64>,
         query: MessageQuery,
     },
+    LoadUser(LazyUser),
+    LoadMember(u64, LazyMember),
 }
 
 #[derive(Clone)]

@@ -175,11 +175,36 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
             NetworkEvent::MessageCreate {
                 message,
                 channel_id,
+                author_member,
+                author_user,
             } => {
                 if let Some(messages) = app.cache.messages.get_mut(&channel_id)
                     && messages.is_loaded()
                 {
                     messages.new_message(message);
+                }
+
+                if app.cache.users.get(&author_user.id).is_none() {
+                    app.context
+                        .network
+                        .request_sender
+                        .send(Request::LoadUser(author_user))
+                        .unwrap();
+                }
+
+                if let Some((guild_id, member)) = author_member
+                    && app
+                        .cache
+                        .members
+                        .entry(guild_id)
+                        .or_default()
+                        .contains_key(&member.id)
+                {
+                    app.context
+                        .network
+                        .request_sender
+                        .send(Request::LoadMember(guild_id, member))
+                        .unwrap();
                 }
             }
 
@@ -196,6 +221,18 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
                     .collect();
                 app.guilds
                     .load_messages(&mut app.cache, channel_id, query, messages);
+            }
+
+            NetworkEvent::LoadedMember(guild_id, member) => {
+                app.cache
+                    .members
+                    .entry(guild_id)
+                    .or_default()
+                    .insert(member.id, member);
+            }
+
+            NetworkEvent::LoadedUser(user) => {
+                app.cache.users.insert(user.id, user);
             }
         },
 
