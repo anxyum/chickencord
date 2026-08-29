@@ -10,7 +10,7 @@ use iced::{
     widget::{MouseArea, Svg, column, container, mouse_area, row, svg, text},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TextChannel {
     pub base: GuildChannelBase,
     pub kind: TextKind,
@@ -24,7 +24,7 @@ pub struct TextChannel {
 }
 
 #[repr(u8)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TextKind {
     Text = 0,
     News = 5,

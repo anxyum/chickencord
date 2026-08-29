@@ -1,6 +1,6 @@
 use super::{GatewayChannel, GuildChannelBase, Unknown, guild_base};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ForumChannel {
     pub base: GuildChannelBase,
     pub kind: ForumKind,
@@ -19,13 +19,13 @@ pub struct ForumChannel {
 }
 
 #[repr(u8)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ForumKind {
     Forum = 15,
     Media = 16,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ForumTag {
     pub id: u64,
     pub name: String,
@@ -34,7 +34,7 @@ pub struct ForumTag {
     pub moderated: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DefaultReaction {
     pub emoji_id: Option<u64>,
     pub emoji_name: Option<String>,

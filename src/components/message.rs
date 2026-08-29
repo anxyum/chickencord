@@ -1,9 +1,8 @@
+use crate::{Context, app_event::AppEvent};
 use discord_client_structs::structs::message::Message as GatewayMessage;
 use iced::{Element, widget::text};
 
-use crate::{Context, app_event::AppEvent};
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Message {
     pub id: u64,
     pub content: Option<String>,
@@ -11,7 +10,7 @@ pub struct Message {
 }
 
 impl Message {
-    pub fn show(&self, context: &Context) -> Element<'_, AppEvent> {
+    pub fn show(&self, _context: &Context) -> Element<'_, AppEvent> {
         text(
             self.content
                 .as_ref()
@@ -22,6 +21,7 @@ impl Message {
     }
 }
 
+#[derive(Debug)]
 pub struct Invalid;
 
 impl TryFrom<GatewayMessage> for Message {

@@ -94,37 +94,90 @@ impl App {
             context,
         }
     }
+
+    fn apply_user_settings(&mut self, settings: PreloadedUserSettings) {
+        let PreloadedUserSettings { guild_folders, .. } = settings;
+        if let Some(guild_folders) = guild_folders {
+            self.guilds.reorganize(guild_folders, &self.context)
+        }
+    }
+}
+
+fn load_channel(app: &mut App, guild_id: u64, channel_id: u64) {
+    let loaded = app
+        .cache
+        .messages
+        .get(&channel_id)
+        .is_some_and(|messages| messages.is_loaded());
+
+    if app.cache.channels.contains_key(&channel_id) && !loaded {
+        let request_sender = app.context.rest.request_sender.clone();
+
+        tokio::spawn(async move {
+            _ = request_sender
+                .send(RestRequest::FetchMessages {
+                    channel_id,
+                    guild_id: Some(guild_id),
+                    query: MessageQuery {
+                        around: None,
+                        before: None,
+                        after: None,
+                        limit: 20,
+                    },
+                })
+                .await;
+        });
+    }
 }
 
 fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
     match message {
         AppEvent::Network(event) => match event {
-            NetworkEvent::CreateGuild {
-                id: guild_id,
-                name,
-                avatar,
-                channels,
-                members,
+            NetworkEvent::Ready {
+                guilds,
+                mut channels,
+                mut members,
+                user_settings,
+                users,
             } => {
-                let avatar = avatar.map(|bytes| Handle::from_bytes(Bytes::from(bytes)));
+                for guild in guilds {
+                    let guild_id = guild.id;
+                    app.guilds.add_guild(
+                        guild,
+                        channels.remove(&guild_id).unwrap(),
+                        members.remove(&guild_id).unwrap(),
+                        &mut app.cache,
+                    );
+                }
 
-                let channels = channels
-                    .into_iter()
-                    .filter_map(|c| c.try_into().ok())
-                    .filter_map(|channel| match channel {
-                        Channel::Guild(channel) => Some(channel),
-                        _ => None,
-                    })
-                    .collect();
+                for user in users {
+                    app.cache.users.insert(user.id, user);
+                }
 
+                app.apply_user_settings(user_settings);
+            }
+
+            NetworkEvent::CreateGuild {
+                guild,
+                members,
+                channels,
+            } => {
                 app.guilds
-                    .create_guild(guild_id, name, avatar, channels, members, &mut app.cache);
+                    .add_guild(guild, channels, members, &mut app.cache);
             }
 
             NetworkEvent::UserSettings(user_settings) => {
-                let PreloadedUserSettings { guild_folders, .. } = user_settings;
-                if let Some(guild_folders) = guild_folders {
-                    app.guilds.reorganize(guild_folders, &app.context)
+                app.apply_user_settings(user_settings);
+            }
+
+            NetworkEvent::MessageCreate {
+                message,
+                channel_id,
+            } => {
+                if let Some(messages) = app.cache.messages.get_mut(&channel_id)
+                    && messages.is_loaded()
+                {
+                    messages.new_message(message);
                 }
             }
         },
@@ -152,6 +205,8 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
 
             AppMessage::OpenGuild(id) => {
                 app.guilds.open_guild(id);
+
+                load_channel(app, id, app.guilds.selected_channel(id).unwrap());
             }
 
             AppMessage::ChannelPanelResized(width) => {
@@ -171,22 +226,8 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
                 channel_id,
             } => {
                 app.guilds.select_channel(guild_id, channel_id);
-                let request_sender = app.context.rest.request_sender.clone();
 
-                tokio::spawn(async move {
-                    _ = request_sender
-                        .send(RestRequest::FetchMessages {
-                            channel_id,
-                            guild_id: Some(guild_id),
-                            query: MessageQuery {
-                                around: None,
-                                before: None,
-                                after: None,
-                                limit: 20,
-                            },
-                        })
-                        .await;
-                });
+                load_channel(app, guild_id, channel_id);
             }
 
             AppMessage::Tick => {}

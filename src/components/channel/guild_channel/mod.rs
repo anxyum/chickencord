@@ -24,7 +24,7 @@ use discord_client_structs::structs::channel::Channel as GatewayChannel;
 use iced::{Color, Element, widget::text};
 
 #[repr(u8)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GuildChannel {
     Text(TextChannel) = 0,
     Voice(VoiceChannel) = 2,

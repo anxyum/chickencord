@@ -1,8 +1,10 @@
+mod handle_message_create;
 mod handle_ready;
 pub mod user_settings;
 
 pub use user_settings::PreloadedUserSettings;
 
+use handle_message_create::handle_message_create;
 use handle_ready::handle_ready;
 
 use crate::app_event::AppEvent;
@@ -23,6 +25,7 @@ pub fn worker() -> impl Stream<Item = AppEvent> {
             let event = client.next_event().await.unwrap();
             match event {
                 Event::Ready(event) => handle_ready(event, &mut output).await,
+                Event::MessageCreate(event) => handle_message_create(event, &mut output).await,
                 _ => {}
             }
         }

@@ -10,7 +10,7 @@ pub use guild_channel::GuildChannel;
 use lobby::Lobby;
 use std::num::NonZeroU64;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Channel {
     Guild(GuildChannel),
     Direct(DirectChannel),

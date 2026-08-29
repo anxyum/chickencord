@@ -10,7 +10,7 @@ use iced::{
 };
 use std::f32::consts::PI;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Category {
     pub base: GuildChannelBase,
 }

@@ -2,7 +2,7 @@ use discord_client_structs::structs::channel::Channel as GatewayChannel;
 
 use crate::components::channel::{Unknown, recipients};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EphemeralDm {
     pub id: u64,
     pub flags: u32,

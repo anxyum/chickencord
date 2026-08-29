@@ -1,6 +1,6 @@
 use std::num::NonZeroU64;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GuildChannelBase {
     pub id: u64,
     pub guild_id: u64,

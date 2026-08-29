@@ -53,6 +53,28 @@ impl Guilds {
         }
     }
 
+    pub fn add_guild(
+        &mut self,
+        guild: Guild,
+        channels: Vec<GuildChannel>,
+        members: Vec<Member>,
+        cache: &mut Cache,
+    ) {
+        let guild_id = guild.id;
+
+        cache.guilds.insert(guild_id, guild);
+        self.channels
+            .insert(guild_id, Channels::new(guild_id, channels, cache));
+
+        let guild_members = members.into_iter().map(|m| (m.id, m));
+
+        cache
+            .members
+            .entry(guild_id)
+            .or_default()
+            .extend(guild_members);
+    }
+
     pub fn create_guild(
         &mut self,
         guild_id: u64,
@@ -288,5 +310,9 @@ impl Guilds {
         let messages = cache.messages.get(&channel_id);
 
         channel.show_body(messages, context)
+    }
+
+    pub fn selected_channel(&self, guild_id: u64) -> Option<u64> {
+        Some(self.channels.get(&guild_id)?.selected_channel())
     }
 }

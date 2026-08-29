@@ -11,7 +11,7 @@ use discord_client_structs::structs::channel::Channel as GatewayChannel;
 use crate::components::channel::Unknown;
 
 #[repr(u8)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DirectChannel {
     Dm(DmChannel) = 1,
     Group(GroupDm) = 3,

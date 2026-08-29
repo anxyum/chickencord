@@ -1,7 +1,7 @@
 use super::{GatewayChannel, GuildChannelBase, Unknown};
 use crate::components::channel::nz;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Thread {
     pub base: GuildChannelBase,
     pub kind: ThreadKind,
@@ -15,14 +15,14 @@ pub struct Thread {
 }
 
 #[repr(u8)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ThreadKind {
     News = 10,
     Public = 11,
     Private = 12,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ThreadMetadata {
     pub archived: bool,
     pub auto_archive_duration: u32,

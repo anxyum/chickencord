@@ -1,6 +1,6 @@
 use super::{GatewayChannel, GuildChannelBase, Unknown, guild_base};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StageChannel {
     pub base: GuildChannelBase,
     pub topic: Option<String>,

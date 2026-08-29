@@ -1,6 +1,6 @@
 use super::{GatewayChannel, GuildChannelBase, Unknown, guild_base};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VoiceChannel {
     pub base: GuildChannelBase,
     pub last_message_id: Option<u64>,

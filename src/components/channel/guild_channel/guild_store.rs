@@ -1,6 +1,6 @@
 use super::{GatewayChannel, GuildChannelBase, Unknown, guild_base};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GuildStore {
     pub base: GuildChannelBase,
 }

@@ -51,6 +51,7 @@ pub struct Messages {
     messages: HashMap<u64, Message>,
     message_order: VecDeque<MessagesChunk>,
     current_chunk: Vec<u64>,
+    loaded: bool,
 }
 
 impl Messages {
@@ -59,7 +60,12 @@ impl Messages {
             messages: HashMap::new(),
             message_order: VecDeque::new(),
             current_chunk: Vec::new(),
+            loaded: false,
         }
+    }
+
+    pub fn is_loaded(&self) -> bool {
+        self.loaded
     }
 
     fn first(&self) -> Option<u64> {
@@ -74,6 +80,8 @@ impl Messages {
         if messages.is_empty() {
             return;
         }
+
+        self.loaded = true;
 
         let messages_chunk = messages.iter().map(|m| m.id).collect();
         self.messages
@@ -155,14 +163,18 @@ impl Messages {
 
     pub fn show(&self, context: &Context) -> Element<'_, AppEvent> {
         column(
-            self.current_chunk
+            self.message_order
                 .iter()
-                .filter_map(|id| self.messages.get(id).map(|m| m.show(context)))
-                .chain(self.message_order.iter().flat_map(|mc| {
+                .flat_map(|mc| {
                     mc.messages
                         .iter()
                         .filter_map(|id| self.messages.get(id).map(|m| m.show(context)))
-                })),
+                })
+                .chain(
+                    self.current_chunk
+                        .iter()
+                        .filter_map(|id| self.messages.get(id).map(|m| m.show(context))),
+                ),
         )
         .into()
     }

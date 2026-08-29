@@ -4,7 +4,7 @@ use discord_client_structs::structs::channel::Channel as GatewayChannel;
 
 use crate::components::channel::{Unknown, nz};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Lobby {
     pub id: u64,
     pub guild_id: Option<u64>,

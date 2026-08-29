@@ -734,6 +734,7 @@ dependencies = [
  "discord_client_rest",
  "discord_client_structs",
  "dotenvy",
+ "futures",
  "iced",
  "image",
  "prost",

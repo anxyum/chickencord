@@ -14,9 +14,9 @@ use iced::{
     },
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Guild {
-    id: u64,
+    pub id: u64,
     name: String,
     initials: String,
     avatar: Option<Handle>,
