@@ -1,18 +1,16 @@
 use super::{
-    Cache, Channels, Guild, GuildFolder, Member, Message, Messages, User, channel::GuildChannel,
+    Cache, Channels, Guild, GuildFolder, Member, Message, Messages, channel::GuildChannel,
     resizer::ChannelResizeHandle,
 };
 use crate::{Context, app_event::AppEvent, network::user_settings::GuildFolders};
-use discord_client_structs::structs::{
-    message::query::MessageQuery, user::Member as GatewayMember,
-};
+use discord_client_structs::structs::message::query::MessageQuery;
 use iced::{
     Background, Color, Element, Length, Padding,
     alignment::Horizontal,
     animation::{Animation, Easing},
     border::Radius,
     time::Instant,
-    widget::{Canvas, Container, Scrollable, column, container, image::Handle, row, scrollable},
+    widget::{Canvas, Container, Scrollable, column, container, row, scrollable},
 };
 use std::{collections::HashMap, time::Duration};
 
@@ -67,40 +65,6 @@ impl Guilds {
             .insert(guild_id, Channels::new(guild_id, channels, cache));
 
         let guild_members = members.into_iter().map(|m| (m.id, m));
-
-        cache
-            .members
-            .entry(guild_id)
-            .or_default()
-            .extend(guild_members);
-    }
-
-    pub fn create_guild(
-        &mut self,
-        guild_id: u64,
-        name: String,
-        avatar: Option<Handle>,
-        channels: Vec<GuildChannel>,
-        members: Vec<GatewayMember>,
-        cache: &mut Cache,
-    ) {
-        cache
-            .guilds
-            .insert(guild_id, Guild::new(guild_id, name, avatar));
-        self.channels
-            .insert(guild_id, Channels::new(guild_id, channels, cache));
-
-        let mut guild_members = HashMap::new();
-
-        for member in members {
-            let Some(user) = member.user else {
-                continue;
-            };
-
-            let id = user.id;
-            guild_members.insert(id, Member { id });
-            cache.users.entry(id).or_insert_with(|| User::from(user));
-        }
 
         cache
             .members
