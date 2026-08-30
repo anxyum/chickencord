@@ -47,6 +47,9 @@ pub fn start(mut request_rx: Receiver<Request>, event_sender: EventSender) {
                             }
                             Err(e) => {
                                 eprintln!("failed to fetch messages: {e:?}");
+                                let _ = event_sender.send(AppEvent::Network(
+                                    NetworkEvent::MessagesFailed { channel_id },
+                                ));
                             }
                         }
                     });

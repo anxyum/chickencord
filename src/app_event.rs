@@ -37,6 +37,9 @@ pub enum NetworkEvent {
         query: MessageQuery,
         messages: Vec<RawMessage>,
     },
+    MessagesFailed {
+        channel_id: u64,
+    },
     LoadedUser(User),
     LoadedMember(u64, Member),
 }

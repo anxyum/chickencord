@@ -96,16 +96,14 @@ impl App {
     }
 
     fn load_channel(&mut self, guild_id: u64, channel_id: u64) {
-        if !self.loading_messages.insert(channel_id) {
-            return;
-        }
-        let loaded = self
-            .cache
-            .messages
-            .get(&channel_id)
-            .is_some_and(|messages| messages.is_loaded());
+        let needs_load = self.cache.channels.contains_key(&channel_id)
+            && !self
+                .cache
+                .messages
+                .get(&channel_id)
+                .is_some_and(|messages| messages.is_loaded());
 
-        if self.cache.channels.contains_key(&channel_id) && !loaded {
+        if needs_load && self.loading_messages.insert(channel_id) {
             let _ = self
                 .context
                 .network
@@ -221,6 +219,13 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
                     .collect();
                 app.guilds
                     .load_messages(&mut app.cache, channel_id, query, messages);
+            }
+
+            NetworkEvent::MessagesFailed { channel_id } => {
+                app.loading_messages.remove(&channel_id);
+                if let Some(messages) = app.cache.messages.get_mut(&channel_id) {
+                    messages.clear_restore();
+                }
             }
 
             NetworkEvent::LoadedMember(guild_id, member) => {
