@@ -5,9 +5,9 @@ use crate::{
     components::{Cache, Messages},
 };
 use iced::{
-    Background, Border, Color, Element, Length, Padding, Shadow, Theme, alignment, border::Radius,
+    Background, Border, Element, Length, Padding, Shadow, alignment,
     mouse::Interaction,
-    widget::{MouseArea, Svg, column, container, mouse_area, row, svg, text},
+    widget::{MouseArea, Svg, container, mouse_area, row, svg, text},
 };
 
 #[derive(Debug, Clone)]
@@ -116,8 +116,6 @@ impl TextChannel {
         hovered_message: Option<u64>,
     ) -> Element<'a, AppEvent> {
         match messages {
-            Some(messages) if !messages.is_loaded() => loading_placeholder(),
-            None => loading_placeholder(),
             Some(messages) => messages.show(
                 context,
                 cache,
@@ -125,63 +123,9 @@ impl TextChannel {
                 self.base.id,
                 hovered_message,
             ),
+            None => Messages::loading_placeholder(self.base.id, context),
         }
     }
-}
-
-fn loading_placeholder<'a>() -> Element<'a, AppEvent> {
-    let border = Border {
-        color: Color::from_rgba8(128, 128, 128, 0.25),
-        width: 1.0,
-        radius: Radius::default(),
-    };
-
-    let wireline = |width: f32, height: f32| -> Element<'a, AppEvent> {
-        container(text(""))
-            .width(width)
-            .height(height)
-            .style(move |_theme: &Theme| container::Style {
-                border: Border { radius: Radius::new(4.0), ..border },
-                ..container::Style::default()
-            })
-            .into()
-    };
-
-    let wireavatar = || -> Element<'a, AppEvent> {
-        container(text(""))
-            .width(40.0)
-            .height(40.0)
-            .style(move |_theme: &Theme| container::Style {
-                border: Border { radius: Radius::new(20.0), ..border },
-                ..container::Style::default()
-            })
-            .into()
-    };
-
-    let wiremessage = |widths: [f32; 3]| -> Element<'a, AppEvent> {
-        row![
-            wireavatar(),
-            column![
-                wireline(widths[0], 12.0),
-                wireline(widths[1], 10.0),
-                wireline(widths[2], 10.0),
-            ]
-            .spacing(8.0),
-        ]
-        .spacing(16.0)
-        .padding(Padding::new(2.0).left(16.0))
-        .into()
-    };
-
-    column![
-        wiremessage([120.0, 260.0, 200.0]),
-        wiremessage([180.0, 300.0, 220.0]),
-        wiremessage([140.0, 240.0, 280.0]),
-        wiremessage([200.0, 260.0, 180.0]),
-        wiremessage([150.0, 220.0, 240.0]),
-    ]
-    .spacing(16.0)
-    .into()
 }
 
 impl TryFrom<GatewayChannel> for TextChannel {

@@ -98,7 +98,8 @@ impl Message {
                 column([
                     row([
                         text(display_name)
-                            .color(messages_theme.message.default_user_name_color)
+                            .color(messages_theme.message.default_username_color)
+                            .size(messages_theme.message.username_size)
                             .into(),
                         self.full_datetime(context).into(),
                     ])

@@ -201,7 +201,7 @@ pub struct MessagesTheme {
     pub message: MessageTheme,
 
     pub background_color: Color,
-    pub message_gap: f32,
+    pub message_spacing: f32,
 
     pub scroller_color: Color,
     pub scroller_width: f32,
@@ -212,7 +212,7 @@ impl Default for MessagesTheme {
         Self {
             message: MessageTheme::default(),
             background_color: Color::BLACK,
-            message_gap: 16.0,
+            message_spacing: 16.0,
 
             scroller_color: Color::from_rgb8(128, 128, 128),
             scroller_width: 8.0,
@@ -224,8 +224,12 @@ impl Default for MessagesTheme {
 pub struct MessageTheme {
     pub text_color: Color,
     pub time_color: Color,
-    pub default_user_name_color: Color,
+    pub default_username_color: Color,
     pub hover_background_color: Color,
+
+    pub placeholder_name_color: Color,
+    pub placeholder_text_color: Color,
+    pub placeholder_avatar_color: Color,
 
     pub avatar_padding_left: f32,
     pub total_padding_left: f32,
@@ -235,6 +239,7 @@ pub struct MessageTheme {
     pub avatar_spacing: f32,
     pub avatar_size: f32,
 
+    pub username_size: f32,
     pub text_size: f32,
     pub time_size: f32,
     pub time_spacing: f32,
@@ -252,8 +257,12 @@ impl Default for MessageTheme {
         Self {
             text_color: Color::WHITE,
             time_color: Color::from_rgba8(255, 255, 255, 0.5),
-            default_user_name_color: Color::WHITE,
+            default_username_color: Color::WHITE,
             hover_background_color: Color::from_rgba8(128, 128, 128, 0.125),
+
+            placeholder_name_color: Color::from_rgba8(128, 128, 128, 0.40),
+            placeholder_text_color: Color::from_rgba8(128, 128, 128, 0.25),
+            placeholder_avatar_color: Color::from_rgba8(128, 128, 128, 0.25),
 
             avatar_padding_left,
             total_padding_left,
@@ -263,6 +272,7 @@ impl Default for MessageTheme {
             avatar_spacing,
             avatar_size,
 
+            username_size: 16.0,
             text_size: 16.0,
             time_size: 12.0,
             time_spacing: 8.0,

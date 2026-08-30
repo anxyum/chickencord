@@ -6,11 +6,48 @@ use crate::{
 };
 use discord_client_structs::structs::message::query::MessageQuery;
 use iced::{
-    Element,
+    Border, Color, Element, Length, Padding, Theme,
     border::Radius,
-    widget::{Id, column, mouse_area, scrollable},
+    widget::{Id, Space, column, container, mouse_area, row, scrollable, text},
 };
+use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 use std::collections::{HashMap, VecDeque};
+
+const PLACEHOLDERS: &[&[f32]] = &[
+    &[120.0, 250.0, 200.0, 230.0],
+    &[130.0, 230.0, 280.0],
+    &[140.0, 240.0, 280.0],
+    &[150.0, 220.0, 240.0, 280.0],
+    &[160.0, 220.0, 250.0, 300.0],
+    &[170.0, 240.0, 280.0],
+    &[180.0, 300.0, 220.0, 180.0],
+    &[190.0, 260.0, 180.0],
+    &[200.0, 270.0, 180.0],
+];
+
+const PLACEHOLDER_MESSAGE_COUNT: f32 = PLACEHOLDERS.len() as f32;
+
+const PLACEHOLDER_TEXT_LINE_COUNT: f32 = {
+    let mut count = 0;
+    let mut i = 0;
+
+    while i < PLACEHOLDERS.len() {
+        count += PLACEHOLDERS[i].len() - 1;
+        i += 1;
+    }
+
+    count as f32
+};
+
+fn place_holder_total_size(context: &Context) -> f32 {
+    let msgs = &context.theme.messages;
+    let msg = &msgs.message;
+
+    let message_heights = (msg.padding_y * 2.0 + msg.username_size) * PLACEHOLDER_MESSAGE_COUNT
+        + (msg.text_size + msg.padding_y * 2.0) * PLACEHOLDER_TEXT_LINE_COUNT;
+
+    message_heights + msgs.message_spacing * (PLACEHOLDER_MESSAGE_COUNT - 1.0)
+}
 
 #[derive(Debug)]
 pub struct MessagesChunk {
@@ -61,7 +98,6 @@ pub struct Messages {
     current_chunk: Vec<u64>,
     loaded: bool,
     exhausted: bool,
-    loading: bool,
     anchor_bottom: bool,
     restoring: bool,
     restore_offset: f32,
@@ -76,7 +112,6 @@ impl Messages {
             current_chunk: Vec::new(),
             loaded: false,
             exhausted: false,
-            loading: false,
             anchor_bottom: true,
             restoring: false,
             restore_offset: 0.0,
@@ -217,7 +252,13 @@ impl Messages {
         channel_id: u64,
         hovered_message: Option<u64>,
     ) -> Element<'a, AppEvent> {
-        let mut messages_el = Vec::new();
+        let mut col = Vec::new();
+        col.push(Space::new().height(Length::Fill).into());
+
+        if !self.exhausted {
+            col.push(Self::loading_placeholder(channel_id, context));
+        }
+
         let mut group: Vec<Element<'a, AppEvent>> = Vec::new();
 
         let flush_group = |group: &mut Vec<Element<'a, AppEvent>>,
@@ -242,7 +283,7 @@ impl Messages {
             previous_author = m.author_id;
 
             if new_group && !group.is_empty() {
-                flush_group(&mut group, &mut messages_el);
+                flush_group(&mut group, &mut col);
             }
             let hovered = hovered_message == Some(m.id);
             let message = if new_group {
@@ -257,11 +298,11 @@ impl Messages {
                     .into(),
             );
         }
-        flush_group(&mut group, &mut messages_el);
+        flush_group(&mut group, &mut col);
 
         let anchor_bottom = self.anchor_bottom;
 
-        scrollable(column(messages_el).spacing(context.theme.messages.message_gap))
+        scrollable(column(col).spacing(context.theme.messages.message_spacing))
             .style(|theme, status| {
                 let mut style = scrollable::default(theme, status);
                 let border_width = (12.0 - context.theme.messages.scroller_width) / 2.0;
@@ -293,7 +334,10 @@ impl Messages {
                         channel_id,
                         offset: self.restore_offset + (height - self.restore_height),
                     })
-                } else if distance_to_top < 32.0 && !self.exhausted && !self.restoring {
+                } else if distance_to_top < place_holder_total_size(context)
+                    && !self.exhausted
+                    && !self.restoring
+                {
                     AppEvent::Message(AppMessage::LoadBefore {
                         guild_id,
                         channel_id,
@@ -310,6 +354,69 @@ impl Messages {
                     })
                 }
             })
+            .into()
+    }
+
+    pub fn loading_placeholder<'a>(channel_id: u64, context: &'a Context) -> Element<'a, AppEvent> {
+        let messages_theme = &context.theme.messages;
+        let message_theme = &messages_theme.message;
+
+        let wireline = |width: f32, height: f32, fill: Color| -> Element<'a, AppEvent> {
+            container(text(""))
+                .width(width)
+                .height(height)
+                .style(move |_theme: &Theme| container::Style {
+                    background: Some(fill.into()),
+                    border: Border {
+                        radius: Radius::new(height / 2.0),
+                        ..Border::default()
+                    },
+                    ..container::Style::default()
+                })
+                .into()
+        };
+
+        let wireavatar = || -> Element<'a, AppEvent> {
+            container(text(""))
+                .width(message_theme.avatar_size)
+                .height(message_theme.avatar_size)
+                .style(move |_theme: &Theme| container::Style {
+                    background: Some(message_theme.placeholder_avatar_color.into()),
+                    border: Border {
+                        radius: Radius::new(message_theme.avatar_size / 2.0),
+                        ..Border::default()
+                    },
+                    ..container::Style::default()
+                })
+                .into()
+        };
+
+        let name_size = message_theme.username_size;
+        let text_size = message_theme.text_size;
+        let wiremessage = |widths: &[f32]| -> Element<'a, AppEvent> {
+            let mut widths = widths.into_iter();
+            let mut children = vec![wireline(
+                *widths.next().unwrap(),
+                name_size,
+                message_theme.placeholder_name_color,
+            )];
+
+            for &w in widths {
+                children.push(wireline(w, text_size, message_theme.placeholder_text_color));
+            }
+            row![
+                wireavatar(),
+                column(children).spacing(message_theme.padding_y * 2.0),
+            ]
+            .spacing(message_theme.avatar_spacing)
+            .padding(Padding::new(message_theme.padding_y).left(message_theme.avatar_padding_left))
+            .into()
+        };
+
+        let mut children: Vec<_> = PLACEHOLDERS.iter().map(|w| wiremessage(w)).collect();
+        children.shuffle(&mut StdRng::seed_from_u64(channel_id));
+        column(children)
+            .spacing(messages_theme.message_spacing)
             .into()
     }
 }

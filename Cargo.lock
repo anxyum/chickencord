@@ -738,6 +738,7 @@ dependencies = [
  "iced",
  "image",
  "prost",
+ "rand 0.10.2",
  "reqwest",
  "resvg 0.48.1",
  "tokio",

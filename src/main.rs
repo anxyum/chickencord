@@ -5,7 +5,7 @@ mod network;
 mod themes;
 
 use app_event::{AppEvent, AppMessage, NetworkEvent};
-use components::{Cache, Guilds};
+use components::{Cache, Guilds, LazyUser};
 use discord_client_structs::structs::message::query::MessageQuery;
 use iced::{
     Color, Element, Font, Length, Subscription, Task,
@@ -14,7 +14,10 @@ use iced::{
 };
 use icons::Icons;
 use network::{NetworkChannels, PreloadedUserSettings, Request};
-use std::{collections::HashSet, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
 use themes::AppTheme;
 
 pub(crate) const GG_SANS_REGULAR: Font = Font::with_name("gg sans Regular");
@@ -213,10 +216,35 @@ fn update(app: &mut App, message: AppEvent) -> Task<AppEvent> {
                 ..
             } => {
                 app.loading_messages.remove(&channel_id);
+
+                let mut users: HashMap<u64, LazyUser> = HashMap::new();
                 let messages = messages
                     .into_iter()
-                    .filter_map(|m| m.try_into().ok())
+                    .filter_map(|m| {
+                        let author = &m.author;
+                        users.insert(
+                            author.id,
+                            LazyUser {
+                                id: author.id,
+                                display_name: author.global_name.clone(),
+                                username: author.username.clone(),
+                                avatar: author.avatar.clone().unwrap_or_default(),
+                            },
+                        );
+                        m.try_into().ok()
+                    })
                     .collect();
+
+                for user in users.into_values() {
+                    if app.cache.users.get(&user.id).is_none() {
+                        app.context
+                            .network
+                            .request_sender
+                            .send(Request::LoadUser(user))
+                            .unwrap();
+                    }
+                }
+
                 app.guilds
                     .load_messages(&mut app.cache, channel_id, query, messages);
             }
